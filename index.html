@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lizard Garden - Virtual Pet Game</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+</head>
+<body>
+    <div class="game-container">
+        <header>
+            <div class="logo-container">
+                <img src="blobgardenlogo.png" alt="Blob Garden" class="logo">
+            </div>
+        </header>
+        
+        <div class="game-area">
+            <div id="phaser-game"></div>
+            <!-- Coins display inside game area -->
+            <div class="game-ui-overlay">
+                <div class="coins-display">
+                    Coins: <span id="coins">100</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="feed-btn" class="action-btn">🪲 Feed (10 coins)</button>
+            <button id="decorate-btn" class="action-btn">🌿 Add Plant (25 coins)</button>
+            <button id="rock-btn" class="action-btn">🪨 Add Rock (15 coins)</button>
+            <button id="water-btn" class="action-btn">💧 Add Water (20 coins)</button>
+            <button id="mushroom-btn" class="action-btn">🍄 Add Mushroom (30 coins)</button>
+            <button id="stump-btn" class="action-btn">🪵 Add Stump (35 coins)</button>
+        </div>
+        
+        <div class="lizard-collection">
+            <h3>Your Blobs</h3>
+            <div id="lizard-list"></div>
+        </div>
+    </div>
+    
+    <script src="game_working.js"></script>
+</body>
+</html>
