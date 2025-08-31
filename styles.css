@@ -38,6 +38,8 @@ header {
     filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.1));
 }
 
+
+
 .game-area {
     position: relative;
 }
@@ -127,26 +129,26 @@ h1 {
     box-shadow: none;
 }
 
-.lizard-collection {
+.blob-collection {
     background: rgba(255, 255, 255, 0.8);
     border-radius: 15px;
     padding: 15px;
     border: 2px solid #4CAF50;
 }
 
-.lizard-collection h3 {
+.blob-collection h3 {
     color: #2E7D32;
     margin-bottom: 10px;
     text-align: center;
 }
 
-#lizard-list {
+#blob-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 10px;
 }
 
-.lizard-card {
+.blob-card {
     background: white;
     border-radius: 10px;
     padding: 10px;
@@ -155,16 +157,16 @@ h1 {
     transition: transform 0.2s ease;
 }
 
-.lizard-card:hover {
+.blob-card:hover {
     transform: scale(1.05);
 }
 
-.lizard-emoji {
+.blob-emoji {
     font-size: 2em;
     margin-bottom: 5px;
 }
 
-.lizard-image {
+.blob-image {
     width: 60px;
     height: 60px;
     object-fit: contain;
@@ -172,13 +174,167 @@ h1 {
     image-rendering: pixelated; /* Keeps pixel art crisp */
 }
 
-.lizard-name {
+.blob-name {
     font-weight: bold;
     color: #2E7D32;
     margin-bottom: 3px;
 }
 
-.lizard-happiness {
+.blob-happiness {
     font-size: 0.9em;
     color: #666;
+}
+
+.blob-rarity {
+    font-size: 0.8em;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin: 2px 0;
+}
+
+.blob-personality {
+    font-size: 0.8em;
+    color: #666;
+    font-style: italic;
+    margin: 2px 0;
+}
+
+.collection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.collection-view-btn {
+    padding: 8px 12px;
+    font-size: 0.9em;
+    border: none;
+    border-radius: 15px;
+    background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.collection-view-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px 20px 0 0;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.8em;
+}
+
+.close {
+    color: white;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.close:hover {
+    color: #FFD700;
+}
+
+.collection-stats {
+    padding: 20px 30px;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+
+.stat-number {
+    font-size: 2em;
+    font-weight: bold;
+    display: block;
+}
+
+.full-collection {
+    padding: 30px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.collection-card {
+    background: white;
+    border-radius: 15px;
+    padding: 15px;
+    text-align: center;
+    border: 3px solid #E0E0E0;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.collection-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.collection-card.adopted {
+    border-color: #FF69B4;
+    background: linear-gradient(135deg, #fff5f8 0%, #ffe0e6 100%);
+}
+
+.collection-card.adopted::before {
+    content: "💖";
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #FF69B4;
+    color: white;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
 }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lizard Garden - Virtual Pet Game</title>
+    <title>Blob Garden - Virtual Pet Game</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
 </head>
@@ -26,17 +26,32 @@
         </div>
         
         <div class="controls">
-            <button id="feed-btn" class="action-btn">🪲 Feed (10 coins)</button>
-            <button id="decorate-btn" class="action-btn">🌿 Add Plant (25 coins)</button>
+            <button id="feed-btn" class="action-btn">🍗 Feed (10 coins)</button>
+            <button id="decorate-btn" class="action-btn">🏀 Add Bounce Pad (25 coins)</button>
             <button id="rock-btn" class="action-btn">🪨 Add Rock (15 coins)</button>
             <button id="water-btn" class="action-btn">💧 Add Water (20 coins)</button>
             <button id="mushroom-btn" class="action-btn">🍄 Add Mushroom (30 coins)</button>
             <button id="stump-btn" class="action-btn">🪵 Add Stump (35 coins)</button>
         </div>
         
-        <div class="lizard-collection">
-            <h3>Your Blobs</h3>
-            <div id="lizard-list"></div>
+        <div class="blob-collection">
+            <div class="collection-header">
+                <h3>Your Blobs</h3>
+                <button id="collection-btn" class="collection-view-btn">📖 View Collection</button>
+            </div>
+            <div id="blob-list"></div>
+        </div>
+
+        <!-- Collection Modal -->
+        <div id="collection-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>🌟 Blob Collection Album 🌟</h2>
+                    <span class="close">&times;</span>
+                </div>
+                <div id="collection-stats" class="collection-stats"></div>
+                <div id="full-collection" class="full-collection"></div>
+            </div>
         </div>
     </div>
     
