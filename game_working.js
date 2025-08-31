@@ -58,15 +58,9 @@ class BlobGame extends Phaser.Scene {
   }
 
   preload() {
-    console.log("Preload started");
-
     // Add error handling for file loading
     this.load.on("loaderror", (file) => {
       console.error("Failed to load file:", file.src);
-    });
-
-    this.load.on("complete", () => {
-      console.log("All files loaded successfully");
     });
 
     // Load the garden background PNG
@@ -88,15 +82,12 @@ class BlobGame extends Phaser.Scene {
       this.createDecorationSprites();
       this.createFoodSprite();
       this.createCoinSprite();
-      console.log("Sprite creation completed");
     } catch (error) {
       console.error("Error creating sprites:", error);
     }
   }
 
   create() {
-    console.log("Create function started");
-
     try {
       this.gameWidth = this.cameras.main.width;
       this.gameHeight = this.cameras.main.height;
@@ -161,39 +152,7 @@ class BlobGame extends Phaser.Scene {
 
       this.updateUI();
 
-      this.time.delayedCall(2000, () => this.spawnBlob());
-
-      // For testing: spawn a blob immediately and set different happiness levels
-      if (window.location.href.includes("test_visual_happiness.html")) {
-        this.time.delayedCall(1000, () => {
-          this.spawnBlob();
-          // Test different happiness levels after a short delay
-          this.time.delayedCall(2000, () => {
-            if (this.blobs.length > 0) {
-              const testBlob = this.blobs[0];
-              console.log("Testing happiness indicators...");
-
-              // Test sad face (20% happiness)
-              testBlob.happiness = 20;
-              this.updateBlobHappinessDisplay(testBlob);
-
-              // Test sparkles after 3 seconds (80% happiness)
-              this.time.delayedCall(3000, () => {
-                testBlob.happiness = 80;
-                this.updateBlobHappinessDisplay(testBlob);
-                console.log("Happiness set to 80% - should see sparkles");
-              });
-
-              // Test normal state after 6 seconds (50% happiness)
-              this.time.delayedCall(6000, () => {
-                testBlob.happiness = 50;
-                this.updateBlobHappinessDisplay(testBlob);
-                console.log("Happiness set to 50% - normal state");
-              });
-            }
-          });
-        });
-      }
+      this.time.delayedCall(6000, () => this.spawnBlob());
 
       this.time.addEvent({
         delay: 1000,
@@ -211,16 +170,12 @@ class BlobGame extends Phaser.Scene {
 
       this.scheduleNextCoinDrop();
       this.scheduleHabitatEvaluation();
-
-      console.log("Create function completed successfully");
     } catch (error) {
       console.error("Error in create function:", error);
     }
   }
 
   ensureSpritesAvailable() {
-    console.log("🔍 Checking sprite availability...");
-
     this.blobTypes.forEach((type) => {
       const pngExists = this.textures.exists(type.key);
       const fallbackExists = this.textures.exists(type.fallbackKey);
@@ -245,28 +200,11 @@ class BlobGame extends Phaser.Scene {
         graphics.destroy();
 
         type.emergencyKey = emergencyKey;
-        console.log(`✅ Created emergency sprite: ${emergencyKey}`);
-      } else if (pngExists) {
-        console.log(`✅ PNG sprite available: ${type.key}`);
-      } else if (fallbackExists) {
-        console.log(`✅ Fallback sprite available: ${type.fallbackKey}`);
       }
     });
-
-    console.log("✅ Sprite availability check complete");
   }
 
   createBlobSprites() {
-    // List of blob types that use PNG files instead of vector graphics
-    const pngBlobTypes = [
-      "lavenderBlob",
-      "pinkBlob",
-      "orangeBlob",
-      "blueBlob",
-      "purpleBlob",
-      "rainbowBlob",
-    ];
-
     this.blobTypes.forEach((type) => {
       // Create fallback sprites for ALL blob types (including PNG types)
       // This ensures sprites render even if PNG files fail to load
@@ -398,7 +336,6 @@ class BlobGame extends Phaser.Scene {
 
   createDecorationSprites() {
     this.createBouncePadSprite();
-    this.createRockSprite();
     this.createWaterSprite();
     this.createMushroomSprite();
     this.createStumpSprite();
@@ -433,11 +370,6 @@ class BlobGame extends Phaser.Scene {
 
     bouncePad.generateTexture("bouncePad", 50, 45);
     bouncePad.destroy();
-  }
-
-  createRockSprite() {
-    // Rock sprite is now loaded as PNG in preload()
-    // No need to generate it here
   }
 
   createWaterSprite() {
@@ -571,19 +503,6 @@ class BlobGame extends Phaser.Scene {
     coin.destroy();
   }
 
-  createBlobShadow() {
-    const shadow = this.add.graphics();
-
-    // Create a very obvious red shadow for debugging - if this doesn't show, there's a fundamental issue
-    shadow.fillStyle(0xff0000, 1.0); // Bright red with full opacity for debugging
-
-    // Draw a large, obvious shape
-    shadow.fillRect(10, 10, 50, 50); // Simple rectangle that should definitely be visible
-
-    shadow.generateTexture("blobShadow", 70, 70);
-    shadow.destroy();
-  }
-
   setupCameraControls() {
     // Set camera bounds to the background image size
     this.cameras.main.setBounds(
@@ -663,35 +582,6 @@ class BlobGame extends Phaser.Scene {
       );
       this.cameras.main.setZoom(newZoom);
     });
-  }
-
-  drawIsometricCube(graphics, x, y, width, height, depth) {
-    graphics.fillStyle(0x999999);
-    graphics.beginPath();
-    graphics.moveTo(x, y);
-    graphics.lineTo(x + width / 2, y - height / 2);
-    graphics.lineTo(x, y - height);
-    graphics.lineTo(x - width / 2, y - height / 2);
-    graphics.closePath();
-    graphics.fillPath();
-
-    graphics.fillStyle(0x666666);
-    graphics.beginPath();
-    graphics.moveTo(x - width / 2, y - height / 2);
-    graphics.lineTo(x, y - height);
-    graphics.lineTo(x, y - height + depth);
-    graphics.lineTo(x - width / 2, y - height / 2 + depth);
-    graphics.closePath();
-    graphics.fillPath();
-
-    graphics.fillStyle(0x777777);
-    graphics.beginPath();
-    graphics.moveTo(x + width / 2, y - height / 2);
-    graphics.lineTo(x, y - height);
-    graphics.lineTo(x, y - height + depth);
-    graphics.lineTo(x + width / 2, y - height / 2 + depth);
-    graphics.closePath();
-    graphics.fillPath();
   }
 
   setupEventListeners() {
@@ -885,7 +775,7 @@ class BlobGame extends Phaser.Scene {
       if (this.blobs.length === 0) attractionChance = 0.8;
 
       if (Math.random() < attractionChance) {
-        this.time.delayedCall(Phaser.Math.Between(1000, 4000), () =>
+        this.time.delayedCall(Phaser.Math.Between(3000, 12000), () =>
           this.spawnBlob()
         );
       }
@@ -934,8 +824,6 @@ class BlobGame extends Phaser.Scene {
         sprite.y = position.y;
         spriteSource = "direct graphics";
       }
-
-      console.log(`🐛 Spawned ${type.name} using ${spriteSource} sprite`);
     } catch (error) {
       console.error(`Error creating sprite for ${type.key}:`, error);
       // Final emergency fallback
@@ -2278,7 +2166,7 @@ class BlobGame extends Phaser.Scene {
   }
 
   scheduleHabitatEvaluation() {
-    const delay = Phaser.Math.Between(20000, 40000);
+    const delay = Phaser.Math.Between(60000, 120000);
     this.time.delayedCall(delay, () => {
       if (this.blobs.length < 5 && this.decorations.length > 2) {
         this.spawnBlob();
@@ -2389,8 +2277,6 @@ class BlobGame extends Phaser.Scene {
   }
 
   resetBlobCollection() {
-    console.log("🗑️ Resetting blob collection...");
-
     // Clear the in-memory collection
     this.blobCollection = {};
 
@@ -2403,8 +2289,6 @@ class BlobGame extends Phaser.Scene {
       // Clear any sessionStorage as well
       sessionStorage.removeItem("blobGardenCollection");
       sessionStorage.removeItem("blobCollection");
-
-      console.log("✅ Blob collection reset successfully!");
 
       // Force refresh the collection modal if it's open
       const modal = document.getElementById("collection-modal");
@@ -2482,10 +2366,6 @@ class BlobGame extends Phaser.Scene {
         adoptionDate: null,
         mementos: [],
       };
-
-      console.log(
-        `✅ ${blob.name} collected with ${blob.happiness}% happiness!`
-      );
 
       // Show "Blob Collected!" notification
       this.showBlobCollectedNotification(blob);

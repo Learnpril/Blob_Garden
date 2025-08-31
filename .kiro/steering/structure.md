@@ -5,13 +5,8 @@
 ```
 /
 ├── index.html              # Main game entry point
-├── game_working.js         # Active development version
-├── game.js                 # Stable backup version
-├── game_clean.js           # Clean reference implementation
+├── game_working.js         # Main game implementation
 ├── styles.css              # All UI and layout styles
-├── test.html               # Development testing page
-├── debug.html              # Debug testing page
-├── test_game.js            # Simple test scene
 ├── blobgardenlogo.png      # Game logo asset
 ├── garden_background.png   # Main background image
 ├── rock.png                # Rock decoration asset
@@ -61,4 +56,3 @@
 - Use data objects with sprite references for entities
 - Generate textures procedurally when possible
 - Separate UI interactions (DOM) from game interactions (Phaser)
-- Maintain multiple file versions for stability during development

@@ -34,9 +34,7 @@ php -S localhost:8000
 ## File Structure
 
 - `index.html` - Main game entry point
-- `game_working.js` - Current development version
-- `game.js` - Stable/backup version
-- `game_clean.js` - Clean reference version
+- `game_working.js` - Main game implementation
 - `styles.css` - All UI styling
 - `*.png` - Image assets for blobs and decorations
 - `test.html`, `debug.html` - Development testing files
