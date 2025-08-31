@@ -161,21 +161,6 @@ class BlobGame extends Phaser.Scene {
 
       this.updateUI();
 
-      // Add a simple debug indicator that the game is running
-      const spriteStatus = this.checkSpriteStatus();
-      const debugText = this.add.text(
-        10,
-        10,
-        `Game Running ✓\n${spriteStatus}`,
-        {
-          fontSize: "14px",
-          fill: "#ffffff",
-          backgroundColor: "#000000",
-          padding: { x: 5, y: 5 },
-        }
-      );
-      debugText.setDepth(1000);
-
       this.time.delayedCall(2000, () => this.spawnBlob());
 
       // For testing: spawn a blob immediately and set different happiness levels
@@ -269,24 +254,6 @@ class BlobGame extends Phaser.Scene {
     });
 
     console.log("✅ Sprite availability check complete");
-  }
-
-  checkSpriteStatus() {
-    let pngCount = 0;
-    let fallbackCount = 0;
-    let emergencyCount = 0;
-
-    this.blobTypes.forEach((type) => {
-      if (this.textures.exists(type.key)) {
-        pngCount++;
-      } else if (this.textures.exists(type.fallbackKey)) {
-        fallbackCount++;
-      } else if (this.textures.exists(type.emergencyKey)) {
-        emergencyCount++;
-      }
-    });
-
-    return `Sprites: ${pngCount} PNG, ${fallbackCount} fallback, ${emergencyCount} emergency`;
   }
 
   createBlobSprites() {
@@ -793,7 +760,7 @@ class BlobGame extends Phaser.Scene {
     });
 
     this.input.on("drag", (pointer, gameObject, dragX, dragY) => {
-      // For rocks, position the center of the sprite at the mouse cursor
+      // For all draggable objects, position the center of the sprite at the mouse cursor
       // Convert pointer coordinates to world coordinates
       const worldX = pointer.x + this.cameras.main.scrollX;
       const worldY = pointer.y + this.cameras.main.scrollY;
@@ -807,10 +774,13 @@ class BlobGame extends Phaser.Scene {
       gameObject.x = validatedPosition.x;
       gameObject.y = validatedPosition.y;
 
+      // Check if this is a decoration
       const decoration = this.decorations.find((d) => d.sprite === gameObject);
       if (decoration) {
         decoration.x = validatedPosition.x;
         decoration.y = validatedPosition.y;
+        // Update depth for proper layering
+        gameObject.setDepth(validatedPosition.y + 500);
 
         // If this is a rock, move any sleeping blobs with it
         if (decoration.type === "rock") {
@@ -822,6 +792,15 @@ class BlobGame extends Phaser.Scene {
             validatedPosition.y
           );
         }
+      }
+
+      // Check if this is a food item
+      const food = this.food.find((f) => f.sprite === gameObject);
+      if (food) {
+        food.x = validatedPosition.x;
+        food.y = validatedPosition.y;
+        // Update depth for proper layering
+        gameObject.setDepth(validatedPosition.y + 100);
       }
     });
 
@@ -838,6 +817,11 @@ class BlobGame extends Phaser.Scene {
       const foodSprite = this.add.image(position.x, position.y, "bug");
       foodSprite.setScale(1.5);
       foodSprite.setInteractive();
+      foodSprite.setDepth(position.y + 100); // Set depth for proper layering
+
+      // Make food draggable
+      foodSprite.setOrigin(0.5, 0.5);
+      this.input.setDraggable(foodSprite);
 
       this.tweens.add({
         targets: foodSprite,
@@ -874,11 +858,9 @@ class BlobGame extends Phaser.Scene {
       decorSprite.setInteractive();
       decorSprite.setDepth(position.y + 500); // Higher depth to ensure visibility
 
-      if (type === "rock") {
-        // Center the origin for rocks so they drag from the center
-        decorSprite.setOrigin(0.5, 0.5);
-        this.input.setDraggable(decorSprite);
-      }
+      // Make all decorations draggable
+      decorSprite.setOrigin(0.5, 0.5);
+      this.input.setDraggable(decorSprite);
 
       decorSprite.setScale(0);
       this.tweens.add({
@@ -1195,43 +1177,18 @@ class BlobGame extends Phaser.Scene {
   }
 
   getRandomGroundPosition() {
-    // Centered coordinate system (background is at 0,0)
+    // Use a medium-sized area for blob wandering - between original small area and full draggable area
     const platformCenterX = 0;
     const platformCenterY = 0;
-    const platformWidth = 500; // Matches the grass diamond width
-    const platformHeight = 250; // Matches the grass diamond height
 
-    let x, y;
-    let attempts = 0;
-    const maxAttempts = 50;
+    // Original area was 500x250, current was 60% of background
+    // Use about 40% of background size to keep blobs safely on visible grass
+    const platformWidth = (this.backgroundWidth || 800) * 0.4;
+    const platformHeight = (this.backgroundHeight || 600) * 0.4;
 
-    do {
-      const randomX =
-        platformCenterX + (Math.random() - 0.5) * platformWidth * 0.8;
-      const randomY =
-        platformCenterY + (Math.random() - 0.5) * platformHeight * 0.8;
-
-      if (
-        this.isPointInDiamond(
-          randomX,
-          randomY,
-          platformCenterX,
-          platformCenterY,
-          platformWidth,
-          platformHeight
-        )
-      ) {
-        x = randomX;
-        y = randomY;
-        break;
-      }
-      attempts++;
-    } while (attempts < maxAttempts);
-
-    if (attempts >= maxAttempts) {
-      x = platformCenterX;
-      y = platformCenterY;
-    }
+    // Generate random position within rectangular bounds with extra safety margin
+    const x = platformCenterX + (Math.random() - 0.5) * platformWidth * 0.8;
+    const y = platformCenterY + (Math.random() - 0.5) * platformHeight * 0.8;
 
     return { x, y };
   }
@@ -1246,38 +1203,38 @@ class BlobGame extends Phaser.Scene {
   }
 
   validatePositionInDiamond(x, y) {
-    // Expanded ground plane for rock dragging - larger than spawn area
+    // Use the full background dimensions for dragging area
     const platformCenterX = 0;
     const platformCenterY = 0;
-    const platformWidth = 700; // Increased from 500
-    const platformHeight = 350; // Increased from 250
+    // Use 95% of background size to allow dragging across most of the visible area
+    const platformWidth = (this.backgroundWidth || 800) * 0.95;
+    const platformHeight = (this.backgroundHeight || 600) * 0.95;
 
+    // Use a more permissive rectangular boundary instead of strict diamond
+    const halfWidth = platformWidth / 2;
+    const halfHeight = platformHeight / 2;
+
+    // Simple rectangular bounds check
     if (
-      this.isPointInDiamond(
-        x,
-        y,
-        platformCenterX,
-        platformCenterY,
-        platformWidth,
-        platformHeight
-      )
+      x >= platformCenterX - halfWidth &&
+      x <= platformCenterX + halfWidth &&
+      y >= platformCenterY - halfHeight &&
+      y <= platformCenterY + halfHeight
     ) {
       return { x, y };
     }
 
-    const dx = x - platformCenterX;
-    const dy = y - platformCenterY;
-    const halfWidth = platformWidth / 2;
-    const halfHeight = platformHeight / 2;
-    const scale = Math.min(
-      1,
-      1 / (Math.abs(dx) / halfWidth + Math.abs(dy) / halfHeight)
+    // If outside bounds, clamp to the nearest edge
+    const clampedX = Math.max(
+      platformCenterX - halfWidth,
+      Math.min(platformCenterX + halfWidth, x)
+    );
+    const clampedY = Math.max(
+      platformCenterY - halfHeight,
+      Math.min(platformCenterY + halfHeight, y)
     );
 
-    return {
-      x: platformCenterX + dx * scale * 0.8,
-      y: platformCenterY + dy * scale * 0.8,
-    };
+    return { x: clampedX, y: clampedY };
   }
 
   // Check if a position would collide with other blobs
@@ -1421,25 +1378,7 @@ class BlobGame extends Phaser.Scene {
           blob.returningFriendIcon.y = blob.y - 40;
         }
 
-        // Move status icon with the blob (positioned relative to happiness bar)
-        if (blob.statusIcon && blob.statusIcon.visible) {
-          // Stop any existing bobbing animation to prevent position conflicts
-          if (
-            blob.statusIcon.bobTween &&
-            blob.statusIcon.bobTween.isPlaying()
-          ) {
-            blob.statusIcon.bobTween.stop();
-            blob.statusIcon.bobTween = null;
-          }
-
-          const barWidth = 30;
-          const barY = blob.y - (35 + blob.originalScale * 15);
-          const iconX = blob.x - barWidth / 2 - 12; // 12 pixels to the left of bar
-          const iconY = barY; // Same vertical level as happiness bar
-          blob.statusIcon.setPosition(iconX, iconY);
-
-          // Keep position stable - no animation needed
-        }
+        // Status icon positioning is handled in updateBlobHappinessDisplay only
 
         // Move sparkle effect with the blob
         if (blob.sparkleEffect) {
@@ -2180,12 +2119,12 @@ class BlobGame extends Phaser.Scene {
         blob.statusIcon.setScale(0.8);
       }
 
-      // Position sad face icon relative to happiness bar position
+      // Position sad face icon right next to the happiness bar (to the right)
       const barWidth = 30;
       const barHeight = 4;
       const barY = blob.y - (35 + blob.originalScale * 15);
-      // Position to the left side of the happiness bar
-      const iconX = blob.x - barWidth / 2 - 12; // 12 pixels to the left of bar
+      // Position to the right side of the happiness bar
+      const iconX = blob.x + barWidth / 2 + 12; // 12 pixels to the right of bar
       const iconY = barY; // Same vertical level as happiness bar
       blob.statusIcon.setPosition(iconX, iconY);
       blob.statusIcon.setVisible(true);
@@ -2317,7 +2256,7 @@ class BlobGame extends Phaser.Scene {
     const value = Phaser.Math.Between(5, 15);
     const coinSprite = this.add.image(position.x, position.y, "coin");
     coinSprite.setScale(0.6); // Keep same visual size since coin texture is now twice as big
-    coinSprite.setDepth(position.y - 5);
+    coinSprite.setDepth(10000); // Always in front of everything else
 
     // Add idle sine wave animation
     this.tweens.add({
@@ -2354,6 +2293,7 @@ class BlobGame extends Phaser.Scene {
       fill: `#${color.toString(16).padStart(6, "0")}`,
       fontWeight: "bold",
     });
+    textObj.setDepth(9000); // High depth to ensure visibility
 
     this.tweens.add({
       targets: textObj,

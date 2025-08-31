@@ -76,7 +76,7 @@
   - Add "returning friend" indicators for previously collected blobs
   - _Requirements: 4.1, 8.2_
 
-- [ ] 11. Create offline progress calculation system
+- [x] 11. Create offline progress calculation system
 
   - Implement offline time detection using timestamps
   - Calculate happiness changes that occurred during offline period
@@ -94,7 +94,7 @@
   - Implement summary dismissal and return to normal gameplay
   - _Requirements: 7.2, 7.3, 7.4_
 
-- [ ] 13. Add enhanced blob interaction behaviors
+- [x] 13. Add enhanced blob interaction behaviors
 
   - Implement sleeping animation and steady happiness gain for sleepy blobs on rocks
   - Create bouncing animation and burst happiness gain for playful blobs on bounce pads
@@ -103,7 +103,7 @@
   - Create water splashing effects for curious blobs
   - _Requirements: 5.4, 5.5_
 
-- [ ] 14. Enhance happiness decay and departure system
+- [x] 14. Enhance happiness decay and departure system
 
   - Update happiness decay timer to run every 30 seconds instead of every second
   - Implement personality-based decay rate variations
@@ -111,14 +111,14 @@
   - Create visual warnings when blobs are becoming unhappy
   - _Requirements: 1.3, 1.4_
 
-- [ ] 15. Improve interaction bonus system
+- [x] 15. Improve interaction bonus system
 
   - Increase interaction bonuses to 15% for preferred items vs 5% standard
   - Add direct feeding interaction that gives immediate happiness boost
   - Implement item-specific interaction animations and effects
   - _Requirements: 1.2, 5.3_
 
-- [ ] 16. Add relationship and naming enhancements
+- [x] 16. Add relationship and naming enhancements
   - Implement relationship level progression based on interactions and time spent
   - Create welcome messages for returning collected blobs using their names
   - Add favorite activity tracking based on most frequent interactions
