@@ -553,7 +553,53 @@ class BlobGame extends Phaser.Scene {
     this.isDraggingCamera = false;
     this.isDraggingObject = false;
 
+    // Initialize pinch-to-zoom variables
+    this.pinchStartDistance = 0;
+    this.pinchStartZoom = 1;
+    this.isPinching = false;
+    this.touchPointers = new Map();
+
     this.input.on("pointerdown", (pointer) => {
+      // Track all touch points for pinch detection
+      this.touchPointers.set(pointer.id, {
+        x: pointer.x,
+        y: pointer.y,
+        worldX: pointer.x + this.cameras.main.scrollX,
+        worldY: pointer.y + this.cameras.main.scrollY,
+      });
+
+      console.log(
+        "👆 Touch detected, total touches:",
+        this.touchPointers.size,
+        "pointer type:",
+        pointer.pointerType
+      );
+
+      // Check if we have two touches for pinch gesture
+      if (this.touchPointers.size === 2) {
+        const pointers = Array.from(this.touchPointers.values());
+        this.pinchStartDistance = this.getDistance(pointers[0], pointers[1]);
+        this.pinchStartZoom = this.cameras.main.zoom;
+        this.isPinching = true;
+
+        // Disable camera dragging when pinching
+        this.isDraggingCamera = false;
+        this.isDraggingObject = false;
+
+        console.log(
+          "🤏 Pinch gesture started, distance:",
+          this.pinchStartDistance,
+          "zoom:",
+          this.pinchStartZoom
+        );
+        return; // Don't process single-touch logic
+      }
+
+      // Don't start camera drag if we're in the middle of a pinch gesture
+      if (this.isPinching || this.touchPointers.size > 1) {
+        return;
+      }
+
       // Check if we're clicking on a draggable object
       const hitObjects = this.input.hitTestPointer(pointer);
       const draggableObject = hitObjects.find(
@@ -575,6 +621,42 @@ class BlobGame extends Phaser.Scene {
     });
 
     this.input.on("pointermove", (pointer) => {
+      // Update touch pointer position if it exists
+      if (this.touchPointers.has(pointer.id)) {
+        this.touchPointers.set(pointer.id, {
+          x: pointer.x,
+          y: pointer.y,
+          worldX: pointer.x + this.cameras.main.scrollX,
+          worldY: pointer.y + this.cameras.main.scrollY,
+        });
+
+        // Handle pinch zoom if we have two touches
+        if (this.isPinching && this.touchPointers.size === 2) {
+          const pointers = Array.from(this.touchPointers.values());
+          const currentDistance = this.getDistance(pointers[0], pointers[1]);
+
+          if (this.pinchStartDistance > 0) {
+            const zoomRatio = currentDistance / this.pinchStartDistance;
+            const newZoom = Phaser.Math.Clamp(
+              this.pinchStartZoom * zoomRatio,
+              0.3, // Allow zooming out more on mobile
+              3.0 // Allow zooming in more on mobile
+            );
+
+            // Set zoom
+            this.cameras.main.setZoom(newZoom);
+
+            console.log("🔍 Pinch zoom level:", newZoom.toFixed(2));
+          }
+          return; // Don't process camera drag during pinch
+        }
+      }
+
+      // Don't handle camera drag during pinch gestures
+      if (this.isPinching || this.touchPointers.size > 1) {
+        return;
+      }
+
       if (this.isDraggingCamera && !this.isDraggingObject) {
         const deltaX = this.dragStartX - pointer.x;
         const deltaY = this.dragStartY - pointer.y;
@@ -591,6 +673,18 @@ class BlobGame extends Phaser.Scene {
     });
 
     this.input.on("pointerup", (pointer) => {
+      // Remove touch pointer
+      this.touchPointers.delete(pointer.id);
+
+      // End pinch gesture when we have less than 2 touches
+      if (this.touchPointers.size < 2) {
+        if (this.isPinching) {
+          console.log("🤏 Pinch gesture ended");
+        }
+        this.isPinching = false;
+        this.pinchStartDistance = 0;
+      }
+
       if (this.isDraggingCamera && !this.hasDragged && !this.isDraggingObject) {
         // Convert screen coordinates to world coordinates
         const worldX = pointer.x + this.cameras.main.scrollX;
@@ -602,16 +696,38 @@ class BlobGame extends Phaser.Scene {
       this.hasDragged = false;
     });
 
+    // Handle touch cancel (when user touches edge of screen, etc.)
+    this.input.on("pointercancel", (pointer) => {
+      this.touchPointers.delete(pointer.id);
+      if (this.touchPointers.size < 2) {
+        this.isPinching = false;
+        this.pinchStartDistance = 0;
+      }
+      this.isDraggingCamera = false;
+      this.isDraggingObject = false;
+      this.hasDragged = false;
+    });
+
     // Mouse wheel zoom (optional)
     this.input.on("wheel", (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
       const zoomFactor = deltaY > 0 ? 0.9 : 1.1;
       const newZoom = Phaser.Math.Clamp(
         this.cameras.main.zoom * zoomFactor,
-        0.5,
-        2
+        0.3, // Match mobile zoom limits
+        3.0 // Match mobile zoom limits
       );
       this.cameras.main.setZoom(newZoom);
+      console.log("🔍 Mouse wheel zoom level:", newZoom.toFixed(2));
     });
+
+    // Pinch-to-zoom is now integrated into the main pointer event handlers above
+  }
+
+  // Helper function to calculate distance between two points
+  getDistance(point1, point2) {
+    const dx = point2.x - point1.x;
+    const dy = point2.y - point1.y;
+    return Math.sqrt(dx * dx + dy * dy);
   }
 
   setupEventListeners() {
