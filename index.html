@@ -23,6 +23,15 @@
                     Coins: <span id="coins">100</span>
                 </div>
             </div>
+            <!-- Audio controls positioned separately on the left -->
+            <div class="audio-controls">
+                <button id="music-toggle-btn" class="audio-btn" title="Music Volume">🎵</button>
+                <button id="sound-toggle-btn" class="audio-btn" title="Toggle Sound Effects">🔊</button>
+            </div>
+            <div id="volume-slider" class="volume-slider">
+                <div class="volume-label">Music Volume</div>
+                <input type="range" id="music-volume" min="0" max="100" value="50" title="Music Volume">
+            </div>
         </div>
         
         <div class="controls">
@@ -38,6 +47,7 @@
             <div class="collection-header">
                 <h3>Your Blobs</h3>
                 <button id="collection-btn" class="collection-view-btn">📖 View Collection</button>
+            <button id="test-offline-btn" class="collection-view-btn" style="margin-left: 10px;">🌙 Test Offline Progress</button>
             </div>
             <div id="blob-list"></div>
         </div>
@@ -51,6 +61,21 @@
                 </div>
                 <div id="collection-stats" class="collection-stats"></div>
                 <div id="full-collection" class="full-collection"></div>
+            </div>
+        </div>
+
+        <!-- Offline Progress Modal -->
+        <div id="offline-progress-modal" class="modal" style="display: none;">
+            <div class="modal-content offline-progress-content">
+                <div class="modal-header">
+                    <h2>🌙 Welcome Back! 🌙</h2>
+                </div>
+                <div id="offline-progress-content" class="offline-progress-body">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+                <div class="modal-footer">
+                    <button id="offline-progress-close" class="action-btn">Continue Playing</button>
+                </div>
             </div>
         </div>
     </div>

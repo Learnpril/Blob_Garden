@@ -53,6 +53,9 @@ header {
 }
 
 .coins-display {
+    position: absolute;
+    top: 20px;
+    right: 20px;
     font-size: 1.4em;
     font-weight: bold;
     color: white;
@@ -61,6 +64,116 @@ header {
     padding: 8px 12px;
     border-radius: 8px;
     backdrop-filter: blur(4px);
+    z-index: 10;
+}
+
+.audio-controls {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    display: flex;
+    gap: 10px;
+    pointer-events: auto;
+}
+
+.audio-btn {
+    background: rgba(0, 0, 0, 0.3);
+    border: none;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    font-size: 1.2em;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: all 0.2s ease;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.audio-btn:hover {
+    background: rgba(0, 0, 0, 0.5);
+    transform: scale(1.1);
+}
+
+.audio-btn:active {
+    transform: scale(0.95);
+}
+
+.audio-btn.muted {
+    opacity: 0.5;
+}
+
+/* Volume slider styles */
+.volume-slider {
+    position: absolute;
+    top: 70px;
+    left: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    padding: 10px 15px;
+    border-radius: 8px;
+    display: none;
+    z-index: 15;
+    pointer-events: auto;
+    min-width: 120px;
+}
+
+.volume-slider.show {
+    display: block;
+}
+
+.volume-slider input[type="range"] {
+    width: 100px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.3);
+    outline: none;
+    border-radius: 5px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.volume-slider input[type="range"]::-webkit-slider-track {
+    background: rgba(255, 255, 255, 0.3);
+    height: 5px;
+    border-radius: 5px;
+}
+
+.volume-slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    background: white;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.volume-slider input[type="range"]::-moz-range-track {
+    background: rgba(255, 255, 255, 0.3);
+    height: 5px;
+    border-radius: 5px;
+    border: none;
+}
+
+.volume-slider input[type="range"]::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    background: white;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.volume-label {
+    color: white;
+    font-size: 0.8em;
+    text-align: center;
+    margin-bottom: 5px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 h1 {
@@ -337,4 +450,77 @@ h1 {
     align-items: center;
     justify-content: center;
     font-size: 12px;
+}
+
+/* Offline Progress Modal Styles */
+.offline-progress-content {
+    max-width: 600px;
+}
+
+.offline-progress-body {
+    padding: 30px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.offline-summary {
+    text-align: center;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+}
+
+.offline-time {
+    font-size: 1.2em;
+    margin-bottom: 10px;
+}
+
+.coins-earned {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #FFD700;
+    margin: 10px 0;
+}
+
+.events-section {
+    margin: 20px 0;
+}
+
+.events-section h3 {
+    color: #2E7D32;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+.event-item {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    margin: 8px 0;
+    border-radius: 10px;
+    border-left: 4px solid #4CAF50;
+    font-size: 1.1em;
+}
+
+.warning-item {
+    background: #fff3cd;
+    padding: 12px 15px;
+    margin: 8px 0;
+    border-radius: 10px;
+    border-left: 4px solid #ffc107;
+    color: #856404;
+    font-size: 1.1em;
+}
+
+.modal-footer {
+    padding: 20px 30px;
+    text-align: center;
+    background: #f8f9fa;
+    border-radius: 0 0 20px 20px;
+}
+
+.modal-footer .action-btn {
+    padding: 12px 30px;
+    font-size: 1.2em;
 }

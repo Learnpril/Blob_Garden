@@ -14,6 +14,13 @@ class BlobGame extends Phaser.Scene {
     this.gameHeight = 600;
     this.margin = 60;
 
+    // Audio context for sound effects
+    this.audioContext = null;
+    this.soundEnabled = true;
+    this.musicEnabled = true;
+    this.backgroundMusic = null;
+    this.musicStarted = false;
+
     this.blobTypes = [
       {
         key: "lavenderBlob",
@@ -77,6 +84,9 @@ class BlobGame extends Phaser.Scene {
     this.load.image("purpleBlob", "purpleblob.png");
     this.load.image("rainbowBlob", "rainbowblob.png");
 
+    // Background music will be loaded using HTML5 Audio instead of Phaser
+    // This is more reliable for longer audio files
+
     try {
       this.createBlobSprites();
       this.createDecorationSprites();
@@ -91,6 +101,12 @@ class BlobGame extends Phaser.Scene {
     try {
       this.gameWidth = this.cameras.main.width;
       this.gameHeight = this.cameras.main.height;
+
+      // Initialize audio context for sound effects
+      this.initializeAudio();
+
+      // Initialize background music
+      this.initializeBackgroundMusic();
 
       // Set the scene background color to dark green
       this.cameras.main.setBackgroundColor("#1c1d17");
@@ -140,12 +156,18 @@ class BlobGame extends Phaser.Scene {
 
       this.setupEventListeners();
 
+      // Load sound preference
+      this.loadSoundPreference();
+
       try {
         this.loadBlobCollection();
       } catch (error) {
         console.error("Error loading blob collection:", error);
         this.blobCollection = {};
       }
+
+      // Check for offline progress
+      this.checkOfflineProgress();
 
       // Ensure all sprites are available
       this.ensureSpritesAvailable();
@@ -164,6 +186,14 @@ class BlobGame extends Phaser.Scene {
       this.time.addEvent({
         delay: 5000,
         callback: this.generatePassiveCoins,
+        callbackScope: this,
+        loop: true,
+      });
+
+      // Save game state every 30 seconds
+      this.time.addEvent({
+        delay: 30000,
+        callback: this.saveBlobCollection,
         callbackScope: this,
         loop: true,
       });
@@ -592,21 +622,36 @@ class BlobGame extends Phaser.Scene {
     const mushroomBtn = document.getElementById("mushroom-btn");
     const stumpBtn = document.getElementById("stump-btn");
 
-    if (feedBtn) feedBtn.addEventListener("click", () => this.placeFeed());
+    if (feedBtn)
+      feedBtn.addEventListener("click", () => {
+        this.playButtonClickSound();
+        this.placeFeed();
+      });
     if (decorateBtn)
-      decorateBtn.addEventListener("click", () =>
-        this.placeDecoration("bouncePad")
-      );
+      decorateBtn.addEventListener("click", () => {
+        this.playButtonClickSound();
+        this.placeDecoration("bouncePad");
+      });
     if (rockBtn)
-      rockBtn.addEventListener("click", () => this.placeDecoration("rock"));
+      rockBtn.addEventListener("click", () => {
+        this.playButtonClickSound();
+        this.placeDecoration("rock");
+      });
     if (waterBtn)
-      waterBtn.addEventListener("click", () => this.placeDecoration("water"));
+      waterBtn.addEventListener("click", () => {
+        this.playButtonClickSound();
+        this.placeDecoration("water");
+      });
     if (mushroomBtn)
-      mushroomBtn.addEventListener("click", () =>
-        this.placeDecoration("mushroom")
-      );
+      mushroomBtn.addEventListener("click", () => {
+        this.playButtonClickSound();
+        this.placeDecoration("mushroom");
+      });
     if (stumpBtn)
-      stumpBtn.addEventListener("click", () => this.placeDecoration("stump"));
+      stumpBtn.addEventListener("click", () => {
+        this.playButtonClickSound();
+        this.placeDecoration("stump");
+      });
 
     // Collection modal functionality
     const collectionBtn = document.getElementById("collection-btn");
@@ -615,11 +660,24 @@ class BlobGame extends Phaser.Scene {
     const closeBtn = document.querySelector(".close");
 
     if (collectionBtn) {
-      collectionBtn.addEventListener("click", () => this.showCollectionModal());
+      collectionBtn.addEventListener("click", () => {
+        this.playButtonClickSound();
+        this.showCollectionModal();
+      });
+    }
+
+    // Test offline progress button (for development)
+    const testOfflineBtn = document.getElementById("test-offline-btn");
+    if (testOfflineBtn) {
+      testOfflineBtn.addEventListener("click", () => {
+        this.playButtonClickSound();
+        this.testOfflineProgress();
+      });
     }
 
     if (resetCollectionBtn) {
       resetCollectionBtn.addEventListener("click", () => {
+        this.playButtonClickSound();
         if (
           confirm(
             "Are you sure you want to reset your blob collection? This will permanently delete all collected blobs and cannot be undone."
@@ -639,6 +697,21 @@ class BlobGame extends Phaser.Scene {
         if (e.target === collectionModal) {
           this.hideCollectionModal();
         }
+      });
+    }
+
+    // Audio control buttons
+    const soundToggleBtn = document.getElementById("sound-toggle-btn");
+    if (soundToggleBtn) {
+      soundToggleBtn.addEventListener("click", () => {
+        this.toggleSound();
+      });
+    }
+
+    const musicToggleBtn = document.getElementById("music-toggle-btn");
+    if (musicToggleBtn) {
+      musicToggleBtn.addEventListener("click", () => {
+        this.toggleVolumeSlider();
       });
     }
 
@@ -1716,6 +1789,7 @@ class BlobGame extends Phaser.Scene {
             coinCollected = true;
 
             this.coins += coinDrop.value;
+            this.playCoinSound(); // Play coin collection sound
             this.particles.emitParticleAt(coinDrop.x, coinDrop.y, 8);
             this.showFloatingText(
               `+${coinDrop.value}`,
@@ -1783,6 +1857,7 @@ class BlobGame extends Phaser.Scene {
             }
 
             this.particles.emitParticleAt(blob.x, blob.y - 20, 2);
+            this.playBlobInteractionSound(); // Play blob interaction sound
           }
         });
       }
@@ -1808,10 +1883,12 @@ class BlobGame extends Phaser.Scene {
             const previousHappiness = blob.happiness;
             blob.happiness = Math.min(100, blob.happiness + 25);
             blob.lastFed = Date.now();
+            this.playBlobFeedSound(); // Play feeding sound effect
 
             // Add to collection immediately when discovered
             this.addBlobToCollection(blob);
             this.coins += 3;
+            this.playCoinSound(); // Play coin sound for discovery bonus
 
             this.tweens.add({
               targets: food.sprite,
@@ -1923,12 +2000,17 @@ class BlobGame extends Phaser.Scene {
       // Different personalities prefer different items
       if (blob.personality === "sleepy" && item.type === "rock") {
         blob.happiness = Math.min(100, blob.happiness + 0.1); // Slow but steady
+        // Play happy sound occasionally for preferred item interaction
+        if (Math.random() < 0.1) this.playBlobHappySound();
       } else if (blob.personality === "playful" && item.type === "bouncePad") {
         blob.happiness = Math.min(100, blob.happiness + 0.15);
+        if (Math.random() < 0.1) this.playBlobHappySound();
       } else if (blob.personality === "shy" && item.type === "mushroom") {
         blob.happiness = Math.min(100, blob.happiness + 0.12);
+        if (Math.random() < 0.1) this.playBlobHappySound();
       } else if (blob.personality === "curious" && item.type === "water") {
         blob.happiness = Math.min(100, blob.happiness + 0.1);
+        if (Math.random() < 0.1) this.playBlobHappySound();
       }
 
       // Add to collection when coin is generated
@@ -2267,13 +2349,171 @@ class BlobGame extends Phaser.Scene {
 
   saveBlobCollection() {
     try {
+      const gameState = {
+        collection: this.blobCollection,
+        lastSaveTime: Date.now(),
+        coins: this.coins,
+        blobs: this.blobs.map((blob) => ({
+          id: blob.id,
+          name: blob.name,
+          happiness: blob.happiness,
+          personality: blob.personality,
+          rarity: blob.rarity,
+          lastFed: blob.lastFed,
+          firstVisit: blob.firstVisit,
+          totalVisits: blob.totalVisits,
+        })),
+      };
+
       localStorage.setItem(
         "blobGardenCollection",
         JSON.stringify(this.blobCollection)
       );
+
+      localStorage.setItem("blobGardenGameState", JSON.stringify(gameState));
     } catch (error) {
       console.log("Could not save blob collection:", error);
     }
+  }
+
+  checkOfflineProgress() {
+    try {
+      const savedGameState = localStorage.getItem("blobGardenGameState");
+      if (!savedGameState) {
+        // First time playing, save current state
+        this.saveBlobCollection();
+        return;
+      }
+
+      const gameState = JSON.parse(savedGameState);
+      const lastSaveTime = gameState.lastSaveTime || Date.now();
+      const currentTime = Date.now();
+      const offlineTime = currentTime - lastSaveTime;
+
+      // Only show offline progress if away for more than 5 minutes
+      if (offlineTime > 5 * 60 * 1000) {
+        const offlineProgress = this.calculateOfflineProgress(
+          gameState,
+          offlineTime
+        );
+        if (
+          offlineProgress.coinsEarned > 0 ||
+          offlineProgress.events.length > 0
+        ) {
+          this.showOfflineProgressModal(offlineProgress, offlineTime);
+        }
+      }
+
+      // Update current state
+      this.saveBlobCollection();
+    } catch (error) {
+      console.log("Could not check offline progress:", error);
+    }
+  }
+
+  calculateOfflineProgress(gameState, offlineTimeMs) {
+    const offlineHours = offlineTimeMs / (1000 * 60 * 60);
+    const maxOfflineHours = Math.min(offlineHours, 24); // Cap at 24 hours
+
+    let totalCoinsEarned = 0;
+    const events = [];
+    const warnings = [];
+
+    // Process each blob that was active when the game was last saved
+    if (gameState.blobs && gameState.blobs.length > 0) {
+      gameState.blobs.forEach((savedBlob) => {
+        const blobName = savedBlob.name || "Unknown Blob";
+        let currentHappiness = savedBlob.happiness || 50;
+        let coinsFromThisBlob = 0;
+
+        // Calculate happiness decay over time
+        const decayRate = this.getDecayRateForPersonality(
+          savedBlob.personality
+        );
+        const happinessDecay = decayRate * maxOfflineHours;
+        currentHappiness = Math.max(0, currentHappiness - happinessDecay);
+
+        // Calculate coins earned based on happiness levels during offline time
+        if (savedBlob.happiness >= 40) {
+          // Generate coins based on average happiness during offline period
+          const avgHappiness = (savedBlob.happiness + currentHappiness) / 2;
+          const coinRate = this.getCoinRateForHappiness(avgHappiness);
+          coinsFromThisBlob = Math.floor(coinRate * maxOfflineHours);
+          totalCoinsEarned += coinsFromThisBlob;
+
+          // Add positive events based on personality and happiness
+          if (savedBlob.happiness >= 70) {
+            const event = this.generatePositiveEvent(savedBlob);
+            if (event) events.push(event);
+          }
+        }
+
+        // Add warnings for unhappy blobs
+        if (currentHappiness < 25) {
+          warnings.push(`${blobName} became unhappy and needs attention!`);
+        }
+      });
+    }
+
+    return {
+      coinsEarned: totalCoinsEarned,
+      events: events,
+      warnings: warnings,
+      offlineHours: Math.round(maxOfflineHours * 10) / 10,
+    };
+  }
+
+  getDecayRateForPersonality(personality) {
+    const decayRates = {
+      sleepy: 2, // Slower decay
+      playful: 4, // Faster decay
+      shy: 3, // Medium decay
+      curious: 3.5, // Medium-fast decay
+      social: 4.5, // Fastest decay
+    };
+    return decayRates[personality] || 3;
+  }
+
+  getCoinRateForHappiness(happiness) {
+    if (happiness >= 90) return 4; // 4 coins per hour
+    if (happiness >= 70) return 2; // 2 coins per hour
+    if (happiness >= 40) return 1; // 1 coin per hour
+    return 0;
+  }
+
+  generatePositiveEvent(blob) {
+    const events = {
+      sleepy: [
+        `${blob.name} slept peacefully on the rock!`,
+        `${blob.name} had sweet dreams in the garden!`,
+        `${blob.name} rested comfortably and feels refreshed!`,
+      ],
+      playful: [
+        `${blob.name} bounced happily on the bounce pad!`,
+        `${blob.name} played joyfully around the garden!`,
+        `${blob.name} had fun exploring every corner!`,
+      ],
+      shy: [
+        `${blob.name} found comfort near the glowing mushroom!`,
+        `${blob.name} quietly enjoyed the peaceful garden!`,
+        `${blob.name} felt safe and content in their favorite spot!`,
+      ],
+      curious: [
+        `${blob.name} splashed playfully in the water!`,
+        `${blob.name} discovered something interesting!`,
+        `${blob.name} explored the garden with wonder!`,
+      ],
+      social: [
+        `${blob.name} gathered with friends near the stump!`,
+        `${blob.name} enjoyed socializing with other blobs!`,
+        `${blob.name} made new friends in the garden!`,
+      ],
+    };
+
+    const personalityEvents = events[blob.personality] || events.curious;
+    return personalityEvents[
+      Math.floor(Math.random() * personalityEvents.length)
+    ];
   }
 
   resetBlobCollection() {
@@ -2285,6 +2525,7 @@ class BlobGame extends Phaser.Scene {
       localStorage.removeItem("blobGardenCollection");
       localStorage.removeItem("blobCollection");
       localStorage.removeItem("blob_collection");
+      localStorage.removeItem("blobGardenGameState");
 
       // Clear any sessionStorage as well
       sessionStorage.removeItem("blobGardenCollection");
@@ -2715,6 +2956,488 @@ class BlobGame extends Phaser.Scene {
   hideCollectionModal() {
     const modal = document.getElementById("collection-modal");
     modal.style.display = "none";
+  }
+
+  showOfflineProgressModal(offlineProgress, offlineTimeMs) {
+    const modal = document.getElementById("offline-progress-modal");
+    const contentDiv = document.getElementById("offline-progress-content");
+
+    if (!modal || !contentDiv) {
+      console.error("Offline progress modal elements not found");
+      return;
+    }
+
+    // Apply coins earned
+    this.coins += offlineProgress.coinsEarned;
+    this.updateUI();
+
+    // Create the modal content
+    let content = `
+      <div class="offline-summary">
+        <div class="offline-time">You were away for ${offlineProgress.offlineHours} hours</div>
+        <div class="coins-earned">+${offlineProgress.coinsEarned} coins earned! 💰</div>
+      </div>
+    `;
+
+    // Add positive events
+    if (offlineProgress.events.length > 0) {
+      content += `
+        <div class="events-section">
+          <h3>🌟 What happened while you were away:</h3>
+      `;
+      offlineProgress.events.forEach((event) => {
+        content += `<div class="event-item">${event}</div>`;
+      });
+      content += `</div>`;
+    }
+
+    // Add warnings
+    if (offlineProgress.warnings.length > 0) {
+      content += `
+        <div class="events-section">
+          <h3>⚠️ Blobs that need attention:</h3>
+      `;
+      offlineProgress.warnings.forEach((warning) => {
+        content += `<div class="warning-item">${warning}</div>`;
+      });
+      content += `</div>`;
+    }
+
+    // If no events or warnings, show a generic message
+    if (
+      offlineProgress.events.length === 0 &&
+      offlineProgress.warnings.length === 0
+    ) {
+      content += `
+        <div class="events-section">
+          <div class="event-item">Your garden was peaceful while you were away. 🌸</div>
+        </div>
+      `;
+    }
+
+    contentDiv.innerHTML = content;
+    modal.style.display = "block";
+
+    // Set up close button
+    const closeBtn = document.getElementById("offline-progress-close");
+    if (closeBtn) {
+      closeBtn.onclick = () => {
+        modal.style.display = "none";
+      };
+    }
+
+    // Close modal when clicking outside
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        modal.style.display = "none";
+      }
+    };
+  }
+
+  // Test function to simulate offline progress (for development)
+  testOfflineProgress() {
+    // Create mock offline progress data
+    const mockProgress = {
+      coinsEarned: 15,
+      offlineHours: 2.5,
+      events: [
+        "Jelly slept peacefully on the rock!",
+        "Bounce bounced happily on the bounce pad!",
+        "Glow found comfort near the glowing mushroom!",
+      ],
+      warnings: ["Sky Blob became unhappy and needs attention!"],
+    };
+
+    // Show the modal with mock data
+    this.showOfflineProgressModal(mockProgress, 2.5 * 60 * 60 * 1000);
+  }
+
+  // Audio System Methods
+  initializeAudio() {
+    try {
+      this.audioContext = new (window.AudioContext ||
+        window.webkitAudioContext)();
+    } catch (error) {
+      console.log("Web Audio API not supported, sounds disabled");
+      this.soundEnabled = false;
+    }
+  }
+
+  // Resume audio context on user interaction (required by browsers)
+  resumeAudioContext() {
+    if (this.audioContext && this.audioContext.state === "suspended") {
+      this.audioContext.resume();
+    }
+  }
+
+  // Button click sound effect
+  playButtonClickSound() {
+    if (!this.soundEnabled || !this.audioContext) return;
+
+    this.resumeAudioContext();
+
+    const oscillator = this.audioContext.createOscillator();
+    const gainNode = this.audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+
+    // Quick click sound: high to low frequency
+    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(
+      400,
+      this.audioContext.currentTime + 0.1
+    );
+
+    gainNode.gain.setValueAtTime(0.2, this.audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.01,
+      this.audioContext.currentTime + 0.1
+    );
+
+    oscillator.type = "square";
+    oscillator.start(this.audioContext.currentTime);
+    oscillator.stop(this.audioContext.currentTime + 0.1);
+  }
+
+  // Coin collection chime sound effect
+  playCoinSound() {
+    if (!this.soundEnabled || !this.audioContext) return;
+
+    this.resumeAudioContext();
+
+    // Create a pleasant chime with multiple tones
+    const frequencies = [523.25, 659.25, 783.99]; // C5, E5, G5 chord
+
+    frequencies.forEach((freq, index) => {
+      const oscillator = this.audioContext.createOscillator();
+      const gainNode = this.audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(this.audioContext.destination);
+
+      oscillator.frequency.setValueAtTime(freq, this.audioContext.currentTime);
+      oscillator.type = "sine";
+
+      const startTime = this.audioContext.currentTime + index * 0.05;
+      const duration = 0.4;
+
+      gainNode.gain.setValueAtTime(0, startTime);
+      gainNode.gain.linearRampToValueAtTime(0.15, startTime + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+      oscillator.start(startTime);
+      oscillator.stop(startTime + duration);
+    });
+  }
+
+  // Blob interaction sound effects
+  playBlobFeedSound() {
+    if (!this.soundEnabled || !this.audioContext) return;
+
+    this.resumeAudioContext();
+
+    // Happy eating sound - bubbly and cheerful
+    const oscillator = this.audioContext.createOscillator();
+    const gainNode = this.audioContext.createGain();
+    const filter = this.audioContext.createBiquadFilter();
+
+    oscillator.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+
+    oscillator.type = "sawtooth";
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(800, this.audioContext.currentTime);
+
+    // Bouncy feeding sound
+    oscillator.frequency.setValueAtTime(300, this.audioContext.currentTime);
+    oscillator.frequency.linearRampToValueAtTime(
+      500,
+      this.audioContext.currentTime + 0.1
+    );
+    oscillator.frequency.linearRampToValueAtTime(
+      400,
+      this.audioContext.currentTime + 0.2
+    );
+    oscillator.frequency.linearRampToValueAtTime(
+      450,
+      this.audioContext.currentTime + 0.3
+    );
+
+    gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(
+      0.15,
+      this.audioContext.currentTime + 0.05
+    );
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.01,
+      this.audioContext.currentTime + 0.3
+    );
+
+    oscillator.start(this.audioContext.currentTime);
+    oscillator.stop(this.audioContext.currentTime + 0.3);
+  }
+
+  playBlobHappySound() {
+    if (!this.soundEnabled || !this.audioContext) return;
+
+    this.resumeAudioContext();
+
+    // Happy blob sound - like a gentle chirp
+    const oscillator = this.audioContext.createOscillator();
+    const gainNode = this.audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime);
+    oscillator.frequency.linearRampToValueAtTime(
+      800,
+      this.audioContext.currentTime + 0.1
+    );
+    oscillator.frequency.linearRampToValueAtTime(
+      700,
+      this.audioContext.currentTime + 0.2
+    );
+
+    gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(
+      0.12,
+      this.audioContext.currentTime + 0.05
+    );
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.01,
+      this.audioContext.currentTime + 0.2
+    );
+
+    oscillator.start(this.audioContext.currentTime);
+    oscillator.stop(this.audioContext.currentTime + 0.2);
+  }
+
+  playBlobInteractionSound() {
+    if (!this.soundEnabled || !this.audioContext) return;
+
+    this.resumeAudioContext();
+
+    // Gentle interaction sound - like a soft boop
+    const oscillator = this.audioContext.createOscillator();
+    const gainNode = this.audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+
+    oscillator.type = "triangle";
+    oscillator.frequency.setValueAtTime(400, this.audioContext.currentTime);
+    oscillator.frequency.linearRampToValueAtTime(
+      500,
+      this.audioContext.currentTime + 0.05
+    );
+    oscillator.frequency.linearRampToValueAtTime(
+      350,
+      this.audioContext.currentTime + 0.15
+    );
+
+    gainNode.gain.setValueAtTime(0.08, this.audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.01,
+      this.audioContext.currentTime + 0.15
+    );
+
+    oscillator.start(this.audioContext.currentTime);
+    oscillator.stop(this.audioContext.currentTime + 0.15);
+  }
+
+  // Toggle sound on/off
+  toggleSound() {
+    this.soundEnabled = !this.soundEnabled;
+    const soundBtn = document.getElementById("sound-toggle-btn");
+    if (soundBtn) {
+      if (this.soundEnabled) {
+        soundBtn.textContent = "🔊";
+        soundBtn.classList.remove("muted");
+        soundBtn.title = "Mute Sound";
+      } else {
+        soundBtn.textContent = "🔇";
+        soundBtn.classList.add("muted");
+        soundBtn.title = "Enable Sound";
+      }
+    }
+
+    // Save sound preference
+    localStorage.setItem(
+      "blobGardenSoundEnabled",
+      this.soundEnabled.toString()
+    );
+  }
+
+  // Load sound preference
+  loadSoundPreference() {
+    const savedPreference = localStorage.getItem("blobGardenSoundEnabled");
+    if (savedPreference !== null) {
+      this.soundEnabled = savedPreference === "true";
+      const soundBtn = document.getElementById("sound-toggle-btn");
+      if (soundBtn) {
+        if (this.soundEnabled) {
+          soundBtn.textContent = "🔊";
+          soundBtn.classList.remove("muted");
+          soundBtn.title = "Mute Sound Effects";
+        } else {
+          soundBtn.textContent = "🔇";
+          soundBtn.classList.add("muted");
+          soundBtn.title = "Enable Sound Effects";
+        }
+      }
+    }
+  }
+
+  // Music System Methods
+  initializeBackgroundMusic() {
+    try {
+      // Use HTML5 Audio for better compatibility with longer audio files
+      this.backgroundMusic = new Audio("BlobGardenSoundtrack.mp3");
+      this.backgroundMusic.loop = true;
+      this.backgroundMusic.volume = 0.5; // Set to 50% volume for background ambiance
+
+      // Add event listeners for loading
+      this.backgroundMusic.addEventListener("canplaythrough", () => {
+        console.log("✅ Background music loaded successfully");
+      });
+
+      this.backgroundMusic.addEventListener("error", (e) => {
+        console.error("❌ Failed to load background music:", e);
+      });
+
+      // Load music preference and volume
+      this.loadMusicPreference();
+
+      // Set up volume slider
+      this.setupVolumeSlider();
+
+      // Set up user interaction to start music (required by browsers)
+      this.setupMusicUserInteraction();
+    } catch (error) {
+      console.log("Background music could not be initialized:", error);
+    }
+  }
+
+  // Set up user interaction to start music (required by modern browsers)
+  setupMusicUserInteraction() {
+    const startMusic = () => {
+      if (
+        this.backgroundMusic &&
+        this.backgroundMusic.volume > 0 &&
+        !this.musicStarted
+      ) {
+        this.backgroundMusic
+          .play()
+          .then(() => {
+            console.log("🎵 Background music started");
+            this.musicStarted = true;
+          })
+          .catch((error) => {
+            console.log("Could not start background music:", error);
+          });
+      }
+      // Remove the event listeners after first interaction
+      document.removeEventListener("click", startMusic);
+      document.removeEventListener("keydown", startMusic);
+      document.removeEventListener("touchstart", startMusic);
+    };
+
+    // Add event listeners for user interaction
+    document.addEventListener("click", startMusic);
+    document.addEventListener("keydown", startMusic);
+    document.addEventListener("touchstart", startMusic);
+  }
+
+  // Setup volume slider functionality
+  setupVolumeSlider() {
+    const volumeSlider = document.getElementById("music-volume");
+    const volumeSliderContainer = document.getElementById("volume-slider");
+
+    if (volumeSlider) {
+      // Load saved volume or default to 50%
+      const savedVolume = localStorage.getItem("blobGardenMusicVolume");
+      const volume = savedVolume !== null ? parseInt(savedVolume) : 50;
+      volumeSlider.value = volume;
+
+      if (this.backgroundMusic) {
+        this.backgroundMusic.volume = volume / 100;
+      }
+
+      // Handle volume changes
+      volumeSlider.addEventListener("input", (e) => {
+        const volume = parseInt(e.target.value);
+        if (this.backgroundMusic) {
+          this.backgroundMusic.volume = volume / 100;
+
+          // Start music if volume > 0 and not already playing
+          if (volume > 0 && this.backgroundMusic.paused && this.musicStarted) {
+            this.backgroundMusic.play().catch(console.log);
+          }
+          // Pause music if volume is 0
+          else if (volume === 0 && !this.backgroundMusic.paused) {
+            this.backgroundMusic.pause();
+          }
+        }
+
+        // Update button appearance
+        this.updateMusicButtonAppearance(volume);
+
+        // Save volume preference
+        localStorage.setItem("blobGardenMusicVolume", volume.toString());
+      });
+
+      // Close slider when clicking outside
+      document.addEventListener("click", (e) => {
+        if (
+          !volumeSliderContainer.contains(e.target) &&
+          !document.getElementById("music-toggle-btn").contains(e.target)
+        ) {
+          volumeSliderContainer.classList.remove("show");
+        }
+      });
+    }
+  }
+
+  // Toggle volume slider visibility
+  toggleVolumeSlider() {
+    const volumeSliderContainer = document.getElementById("volume-slider");
+    if (volumeSliderContainer) {
+      volumeSliderContainer.classList.toggle("show");
+    }
+  }
+
+  // Update music button appearance based on volume
+  updateMusicButtonAppearance(volume) {
+    const musicBtn = document.getElementById("music-toggle-btn");
+    if (musicBtn) {
+      if (volume === 0) {
+        musicBtn.textContent = "🎵";
+        musicBtn.classList.add("muted");
+        musicBtn.title = "Music Volume (Muted)";
+      } else {
+        musicBtn.textContent = "🎵";
+        musicBtn.classList.remove("muted");
+        musicBtn.title = "Music Volume";
+      }
+    }
+  }
+
+  // Load music preference and volume
+  loadMusicPreference() {
+    // Load volume preference
+    const savedVolume = localStorage.getItem("blobGardenMusicVolume");
+    const volume = savedVolume !== null ? parseInt(savedVolume) : 50;
+
+    if (this.backgroundMusic) {
+      this.backgroundMusic.volume = volume / 100;
+    }
+
+    // Update button appearance based on loaded volume
+    this.updateMusicButtonAppearance(volume);
   }
 }
 

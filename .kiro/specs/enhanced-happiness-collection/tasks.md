@@ -85,7 +85,7 @@
   - Add happiness decay capping to prevent complete blob loss after 24+ hours
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 12. Build offline progress summary UI
+- [x] 12. Build offline progress summary UI
 
   - Create offline progress modal that displays upon game return
   - Show total coins earned and happiness changes during offline time
