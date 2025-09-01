@@ -3300,13 +3300,37 @@ class BlobGame extends Phaser.Scene {
       this.backgroundMusic.loop = true;
       this.backgroundMusic.volume = 0.5; // Set to 50% volume for background ambiance
 
+      // Mobile-specific settings
+      this.backgroundMusic.preload = "auto";
+      this.backgroundMusic.crossOrigin = "anonymous";
+
       // Add event listeners for loading
       this.backgroundMusic.addEventListener("canplaythrough", () => {
         console.log("✅ Background music loaded successfully");
       });
 
+      this.backgroundMusic.addEventListener("loadstart", () => {
+        console.log("🎵 Music loading started");
+      });
+
+      this.backgroundMusic.addEventListener("canplay", () => {
+        console.log("🎵 Music can start playing");
+      });
+
       this.backgroundMusic.addEventListener("error", (e) => {
         console.error("❌ Failed to load background music:", e);
+        console.error("Error details:", {
+          code: e.target?.error?.code,
+          message: e.target?.error?.message,
+        });
+      });
+
+      this.backgroundMusic.addEventListener("stalled", () => {
+        console.warn("⚠️ Music loading stalled");
+      });
+
+      this.backgroundMusic.addEventListener("suspend", () => {
+        console.log("⏸️ Music loading suspended");
       });
 
       // Load music preference and volume
@@ -3317,6 +3341,11 @@ class BlobGame extends Phaser.Scene {
 
       // Set up user interaction to start music (required by browsers)
       this.setupMusicUserInteraction();
+
+      console.log(
+        "🎵 Music system initialized with volume:",
+        this.backgroundMusic.volume
+      );
     } catch (error) {
       console.log("Background music could not be initialized:", error);
     }
@@ -3324,32 +3353,53 @@ class BlobGame extends Phaser.Scene {
 
   // Set up user interaction to start music (required by modern browsers)
   setupMusicUserInteraction() {
-    const startMusic = () => {
-      if (
-        this.backgroundMusic &&
-        this.backgroundMusic.volume > 0 &&
-        !this.musicStarted
-      ) {
-        this.backgroundMusic
-          .play()
-          .then(() => {
-            console.log("🎵 Background music started");
-            this.musicStarted = true;
-          })
-          .catch((error) => {
-            console.log("Could not start background music:", error);
-          });
+    const startMusic = (event) => {
+      console.log("🎵 User interaction detected:", event.type);
+
+      if (this.backgroundMusic && !this.musicStarted) {
+        // Force load the audio on mobile
+        this.backgroundMusic.load();
+
+        // Try to play if volume > 0
+        if (this.backgroundMusic.volume > 0) {
+          this.backgroundMusic
+            .play()
+            .then(() => {
+              console.log("🎵 Background music started successfully");
+              this.musicStarted = true;
+            })
+            .catch((error) => {
+              console.error("❌ Could not start background music:", error);
+              // Try again after a short delay (mobile sometimes needs this)
+              setTimeout(() => {
+                if (this.backgroundMusic && this.backgroundMusic.volume > 0) {
+                  this.backgroundMusic.play().catch(console.error);
+                }
+              }, 100);
+            });
+        } else {
+          // Mark as started even if volume is 0, so we can play later when volume changes
+          this.musicStarted = true;
+          console.log("🎵 Music system ready (volume is 0)");
+        }
       }
+
       // Remove the event listeners after first interaction
       document.removeEventListener("click", startMusic);
       document.removeEventListener("keydown", startMusic);
       document.removeEventListener("touchstart", startMusic);
+      document.removeEventListener("touchend", startMusic);
+      document.removeEventListener("pointerdown", startMusic);
     };
 
-    // Add event listeners for user interaction
-    document.addEventListener("click", startMusic);
-    document.addEventListener("keydown", startMusic);
-    document.addEventListener("touchstart", startMusic);
+    // Add event listeners for user interaction (more comprehensive for mobile)
+    document.addEventListener("click", startMusic, { once: true });
+    document.addEventListener("keydown", startMusic, { once: true });
+    document.addEventListener("touchstart", startMusic, { once: true });
+    document.addEventListener("touchend", startMusic, { once: true });
+    document.addEventListener("pointerdown", startMusic, { once: true });
+
+    console.log("🎵 Music user interaction listeners added");
   }
 
   // Setup volume slider functionality
@@ -3357,11 +3407,19 @@ class BlobGame extends Phaser.Scene {
     const volumeSlider = document.getElementById("music-volume");
     const volumeSliderContainer = document.getElementById("volume-slider");
 
+    console.log(
+      "🎛️ Setting up volume slider, elements found:",
+      !!volumeSlider,
+      !!volumeSliderContainer
+    );
+
     if (volumeSlider) {
       // Load saved volume or default to 50%
       const savedVolume = localStorage.getItem("blobGardenMusicVolume");
       const volume = savedVolume !== null ? parseInt(savedVolume) : 50;
       volumeSlider.value = volume;
+
+      console.log("🔊 Setting initial volume to:", volume);
 
       if (this.backgroundMusic) {
         this.backgroundMusic.volume = volume / 100;
@@ -3370,16 +3428,33 @@ class BlobGame extends Phaser.Scene {
       // Handle volume changes
       volumeSlider.addEventListener("input", (e) => {
         const volume = parseInt(e.target.value);
+        console.log("🔊 Volume changed to:", volume);
+
         if (this.backgroundMusic) {
           this.backgroundMusic.volume = volume / 100;
 
-          // Start music if volume > 0 and not already playing
-          if (volume > 0 && this.backgroundMusic.paused && this.musicStarted) {
-            this.backgroundMusic.play().catch(console.log);
+          // Start music if volume > 0 and user has interacted
+          if (volume > 0 && this.musicStarted) {
+            if (this.backgroundMusic.paused) {
+              this.backgroundMusic
+                .play()
+                .then(() => {
+                  console.log("🎵 Music resumed at volume:", volume);
+                })
+                .catch((error) => {
+                  console.error("❌ Failed to resume music:", error);
+                  // Try loading and playing again (mobile fix)
+                  this.backgroundMusic.load();
+                  setTimeout(() => {
+                    this.backgroundMusic.play().catch(console.error);
+                  }, 100);
+                });
+            }
           }
           // Pause music if volume is 0
           else if (volume === 0 && !this.backgroundMusic.paused) {
             this.backgroundMusic.pause();
+            console.log("🔇 Music paused (volume 0)");
           }
         }
 
@@ -3404,9 +3479,36 @@ class BlobGame extends Phaser.Scene {
 
   // Toggle volume slider visibility
   toggleVolumeSlider() {
+    console.log("🎵 Music button clicked - toggling volume slider");
+
+    // If music hasn't started yet, try to start it now (mobile fallback)
+    if (!this.musicStarted && this.backgroundMusic) {
+      console.log("🎵 Attempting to start music from button click");
+      this.backgroundMusic.load();
+      if (this.backgroundMusic.volume > 0) {
+        this.backgroundMusic
+          .play()
+          .then(() => {
+            console.log("🎵 Music started from button click");
+            this.musicStarted = true;
+          })
+          .catch((error) => {
+            console.error("❌ Failed to start music from button:", error);
+          });
+      } else {
+        this.musicStarted = true;
+      }
+    }
+
     const volumeSliderContainer = document.getElementById("volume-slider");
     if (volumeSliderContainer) {
       volumeSliderContainer.classList.toggle("show");
+      console.log(
+        "🎛️ Volume slider visibility:",
+        volumeSliderContainer.classList.contains("show")
+      );
+    } else {
+      console.error("❌ Volume slider container not found");
     }
   }
 

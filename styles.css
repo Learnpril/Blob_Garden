@@ -53,9 +53,6 @@ header {
 }
 
 .coins-display {
-    position: absolute;
-    top: 20px;
-    right: 20px;
     font-size: 1.4em;
     font-weight: bold;
     color: white;
@@ -64,7 +61,7 @@ header {
     padding: 8px 12px;
     border-radius: 8px;
     backdrop-filter: blur(4px);
-    z-index: 10;
+    pointer-events: auto;
 }
 
 .audio-controls {
