@@ -30,8 +30,7 @@ class BlobGame extends Phaser.Scene {
     this.debugHitboxes = true; // Set to false to disable
     this.debugGraphics = null;
 
-    // Debug cursor tooltip system
-    this.debugCursorTooltip = true; // Set to false to disable
+    // Debug cursor tooltip system (controlled by debugHitboxes)
     this.cursorTooltip = null;
     this.cursorTooltipText = null;
 
@@ -934,8 +933,8 @@ class BlobGame extends Phaser.Scene {
   }
 
   updateCursorTooltip(pointer) {
-    // Only show tooltip if debug mode is enabled
-    if (!this.debugCursorTooltip) {
+    // Only show tooltip if hitbox debug mode is enabled
+    if (!this.debugHitboxes) {
       this.cursorTooltipText.setVisible(false);
       return;
     }
@@ -961,8 +960,8 @@ class BlobGame extends Phaser.Scene {
     }
 
     if (detectedObject) {
-      // Debug: log what we found
-      if (this.debugCursorTooltip) {
+      // Debug: log what we found (only when hitbox debug is on)
+      if (this.debugHitboxes) {
         console.log(
           "Phaser hits:",
           hitObjects.length,
@@ -1305,23 +1304,21 @@ class BlobGame extends Phaser.Scene {
       this.isDraggingObject = false;
     });
 
-    // Add keyboard shortcut to toggle debug hitboxes (press 'H' key)
+    // Add keyboard shortcut to toggle debug hitboxes and cursor tooltip (press 'H' key)
     this.input.keyboard.on("keydown-H", () => {
       this.debugHitboxes = !this.debugHitboxes;
-      console.log("Debug hitboxes:", this.debugHitboxes ? "ON" : "OFF");
+      console.log(
+        "Debug mode (hitboxes + cursor tooltip):",
+        this.debugHitboxes ? "ON" : "OFF"
+      );
 
-      if (!this.debugHitboxes && this.debugGraphics) {
-        this.debugGraphics.clear();
-      }
-    });
-
-    // Add keyboard shortcut to toggle cursor tooltip (press 'T' key)
-    this.input.keyboard.on("keydown-T", () => {
-      this.debugCursorTooltip = !this.debugCursorTooltip;
-      console.log("Cursor tooltip:", this.debugCursorTooltip ? "ON" : "OFF");
-
-      if (!this.debugCursorTooltip) {
-        this.cursorTooltipText.setVisible(false);
+      if (!this.debugHitboxes) {
+        if (this.debugGraphics) {
+          this.debugGraphics.clear();
+        }
+        if (this.cursorTooltipText) {
+          this.cursorTooltipText.setVisible(false);
+        }
       }
     });
   }
