@@ -4407,11 +4407,9 @@ class BlobGame extends Phaser.Scene {
     if (this.isNightMode) {
       this.switchToNightMusic();
       this.switchToNightBackground();
-      this.applyNightFilter();
     } else {
       this.switchToDayMusic();
       this.switchToDayBackground();
-      this.removeNightFilter();
     }
 
     // Update existing decorations to use day/night textures
@@ -4431,27 +4429,6 @@ class BlobGame extends Phaser.Scene {
         decoration.sprite.setTexture(spriteKey);
       }
     });
-  }
-
-  applyNightFilter() {
-    if (!this.nightFilter) {
-      this.nightFilter = this.add.rectangle(
-        0,
-        0,
-        this.gameWidth * 2,
-        this.gameHeight * 2,
-        0x000080,
-        0.3
-      );
-      this.nightFilter.setDepth(1000);
-    }
-  }
-
-  removeNightFilter() {
-    if (this.nightFilter) {
-      this.nightFilter.destroy();
-      this.nightFilter = null;
-    }
   }
 
   updateDayNightButton() {
