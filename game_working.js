@@ -4895,38 +4895,52 @@ class BlobGame extends Phaser.Scene {
   // Create both day and night backgrounds
   createBackground() {
     try {
-      // Use 100% scale for the new larger background images
-      // This ensures the backgrounds display at their full intended size
-      const targetScale = 1.0; // Full scale for larger background images
-      let targetWidth = 800;
-      let targetHeight = 600;
+      // Define target dimensions that both backgrounds should match
+      const targetWidth = 1600;
+      const targetHeight = 1200;
 
       // Create day background first
       if (this.textures.exists("garden_background")) {
         this.dayBackground = this.add.image(0, 0, "garden_background");
         this.dayBackground.setOrigin(0.5, 0.5);
-        this.dayBackground.setScale(targetScale);
         this.dayBackground.setDepth(-1);
 
-        // Store the target dimensions
-        targetWidth = this.dayBackground.width * targetScale;
-        targetHeight = this.dayBackground.height * targetScale;
+        // Calculate scale to match target dimensions
+        const dayScaleX = targetWidth / this.dayBackground.width;
+        const dayScaleY = targetHeight / this.dayBackground.height;
+        const dayScale = Math.max(dayScaleX, dayScaleY); // Use larger scale to cover area
 
-        console.log(`✅ Day background created with scale: ${targetScale}`);
+        this.dayBackground.setScale(dayScale);
+
+        console.log(
+          `✅ Day background: ${this.dayBackground.width}x${
+            this.dayBackground.height
+          } scaled to ${dayScale.toFixed(3)}`
+        );
       }
 
-      // Create night background with the SAME scale
+      // Create night background with calculated scale to match target dimensions
       if (this.textures.exists("garden_background_night")) {
         this.nightBackground = this.add.image(0, 0, "garden_background_night");
         this.nightBackground.setOrigin(0.5, 0.5);
-        this.nightBackground.setScale(targetScale);
         this.nightBackground.setDepth(-1);
         this.nightBackground.setVisible(false); // Start hidden
 
-        console.log(`✅ Night background created with scale: ${targetScale}`);
+        // Calculate scale to match target dimensions
+        const nightScaleX = targetWidth / this.nightBackground.width;
+        const nightScaleY = targetHeight / this.nightBackground.height;
+        const nightScale = Math.max(nightScaleX, nightScaleY); // Use larger scale to cover area
+
+        this.nightBackground.setScale(nightScale);
+
+        console.log(
+          `✅ Night background: ${this.nightBackground.width}x${
+            this.nightBackground.height
+          } scaled to ${nightScale.toFixed(3)}`
+        );
       }
 
-      // Set the background dimensions for camera bounds
+      // Set the background dimensions for camera bounds (always use target dimensions)
       this.backgroundWidth = targetWidth;
       this.backgroundHeight = targetHeight;
 
