@@ -19,7 +19,12 @@ class BlobGame extends Phaser.Scene {
     this.soundEnabled = true;
     this.musicEnabled = true;
     this.backgroundMusic = null;
+    this.nightMusic = null;
     this.musicStarted = false;
+
+    // Day/Night mode system
+    this.isNightMode = false;
+    this.backgroundSprite = null;
 
     this.blobTypes = [
       {
@@ -56,11 +61,31 @@ class BlobGame extends Phaser.Scene {
     ];
 
     this.decorationTypes = {
-      bouncePad: { key: "bouncePad", cost: 25, color: 0x4caf50 },
-      rock: { key: "rock", cost: 15, color: 0x795548 },
-      water: { key: "water", cost: 20, color: 0x2196f3 },
-      mushroom: { key: "mushroom", cost: 30, color: 0xff5722 },
-      stump: { key: "stump", cost: 35, color: 0x8d6e63 },
+      bouncePad: {
+        key: "bouncepad",
+        nightKey: "bouncepad_night",
+        cost: 25,
+        color: 0x4caf50,
+      },
+      rock: { key: "rock", nightKey: "rock_night", cost: 15, color: 0x795548 },
+      water: {
+        key: "water",
+        nightKey: "water_night",
+        cost: 20,
+        color: 0x2196f3,
+      },
+      mushroom: {
+        key: "mushroom",
+        nightKey: "mushroom_night",
+        cost: 30,
+        color: 0xff5722,
+      },
+      stump: {
+        key: "stump",
+        nightKey: "stump_night",
+        cost: 35,
+        color: 0x8d6e63,
+      },
     };
   }
 
@@ -70,11 +95,21 @@ class BlobGame extends Phaser.Scene {
       console.error("Failed to load file:", file.src);
     });
 
-    // Load the garden background PNG
+    // Load the garden background PNGs (day and night)
     this.load.image("garden_background", "garden_background.png");
+    this.load.image("garden_background_night", "garden_background_night.png");
 
-    // Load the rock PNG
+    // Load decoration PNGs (day and night versions)
     this.load.image("rock", "rock.png");
+    this.load.image("rock_night", "rock_night.png");
+    this.load.image("bouncepad", "bouncepad.png");
+    this.load.image("bouncepad_night", "bouncepad_night.png");
+    this.load.image("water", "water.png");
+    this.load.image("water_night", "water_night.png");
+    this.load.image("mushroom", "mushroom.png");
+    this.load.image("mushroom_night", "mushroom_night.png");
+    this.load.image("stump", "stump.png");
+    this.load.image("stump_night", "stump_night.png");
 
     // Load the blob PNGs
     this.load.image("lavenderBlob", "lavenderblob.png");
@@ -89,7 +124,7 @@ class BlobGame extends Phaser.Scene {
 
     try {
       this.createBlobSprites();
-      this.createDecorationSprites();
+      // Decoration sprites are now loaded as PNG assets, no need to generate
       this.createFoodSprite();
       this.createCoinSprite();
     } catch (error) {
@@ -112,49 +147,22 @@ class BlobGame extends Phaser.Scene {
       this.cameras.main.setBackgroundColor("#1c1d17");
 
       // Add the garden background PNG at world center
-      let background;
-      try {
-        if (this.textures.exists("garden_background")) {
-          background = this.add.image(0, 0, "garden_background");
-          background.setOrigin(0.5, 0.5);
-
-          // Don't scale down - show the image at full size or larger
-          const minScale = 1.2; // Show image larger than original for better detail
-          background.setScale(minScale);
-
-          // Store background info for camera bounds
-          this.backgroundWidth = background.width * minScale;
-          this.backgroundHeight = background.height * minScale;
-        } else {
-          console.warn("Garden background not found, using fallback");
-          // Create a fallback background
-          const fallbackBg = this.add.graphics();
-          fallbackBg.fillStyle(0x2d5a27); // Dark green
-          fallbackBg.fillRect(-400, -300, 800, 600);
-          this.backgroundWidth = 800;
-          this.backgroundHeight = 600;
-        }
-      } catch (error) {
-        console.error("Error loading background:", error);
-        // Create a simple colored background as fallback
-        const fallbackBg = this.add.graphics();
-        fallbackBg.fillStyle(0x2d5a27); // Dark green
-        fallbackBg.fillRect(-400, -300, 800, 600);
-        this.backgroundWidth = 800;
-        this.backgroundHeight = 600;
-      }
+      this.createBackground();
 
       // Set up camera controls
       this.setupCameraControls();
 
       this.particles = this.add.particles(0, 0, "sparkle", {
-        scale: { start: 0.3, end: 0 },
+        scale: { start: 1.0, end: 0 },
         speed: { min: 50, max: 100 },
         lifespan: 800,
         emitting: false,
       });
 
       this.setupEventListeners();
+
+      // Initialize day/night button appearance
+      this.updateDayNightButton();
 
       // Load sound preference
       this.loadSoundPreference();
@@ -365,124 +373,8 @@ class BlobGame extends Phaser.Scene {
   }
 
   createDecorationSprites() {
-    this.createBouncePadSprite();
-    this.createWaterSprite();
-    this.createMushroomSprite();
-    this.createStumpSprite();
-  }
-
-  createBouncePadSprite() {
-    const bouncePad = this.add.graphics();
-
-    // Base platform
-    bouncePad.fillStyle(0x333333);
-    bouncePad.fillEllipse(25, 35, 40, 20);
-
-    // Bounce surface (springy material)
-    bouncePad.fillStyle(0x4caf50);
-    bouncePad.fillEllipse(25, 30, 35, 15);
-
-    // Highlight on bounce surface
-    bouncePad.fillStyle(0x66bb6a);
-    bouncePad.fillEllipse(25, 28, 25, 10);
-
-    // Spring coils underneath
-    bouncePad.lineStyle(2, 0x666666, 1);
-    bouncePad.beginPath();
-    bouncePad.moveTo(15, 35);
-    bouncePad.lineTo(18, 32);
-    bouncePad.lineTo(22, 35);
-    bouncePad.lineTo(25, 32);
-    bouncePad.lineTo(28, 35);
-    bouncePad.lineTo(32, 32);
-    bouncePad.lineTo(35, 35);
-    bouncePad.strokePath();
-
-    bouncePad.generateTexture("bouncePad", 50, 45);
-    bouncePad.destroy();
-  }
-
-  createWaterSprite() {
-    const water = this.add.graphics();
-    water.fillStyle(0x2196f3);
-    water.beginPath();
-    water.moveTo(25, 10);
-    water.lineTo(40, 20);
-    water.lineTo(25, 30);
-    water.lineTo(10, 20);
-    water.closePath();
-    water.fillPath();
-    water.fillStyle(0x1976d2);
-    water.beginPath();
-    water.moveTo(25, 30);
-    water.lineTo(40, 20);
-    water.lineTo(42, 22);
-    water.lineTo(27, 32);
-    water.closePath();
-    water.fillPath();
-    water.fillStyle(0x64b5f6);
-    water.fillEllipse(25, 18, 12, 6);
-    water.generateTexture("water", 50, 35);
-    water.destroy();
-  }
-
-  createMushroomSprite() {
-    const mushroom = this.add.graphics();
-
-    // Mushroom stem
-    mushroom.fillStyle(0xf5f5f5);
-    mushroom.fillRect(22, 25, 6, 15);
-    mushroom.fillStyle(0xe0e0e0);
-    mushroom.fillRect(24, 25, 2, 15);
-
-    // Mushroom cap
-    mushroom.fillStyle(0xff5722);
-    mushroom.fillEllipse(25, 20, 20, 12);
-
-    // Mushroom cap shadow
-    mushroom.fillStyle(0xd84315);
-    mushroom.fillEllipse(27, 22, 18, 10);
-
-    // Mushroom spots
-    mushroom.fillStyle(0xffffff);
-    mushroom.fillCircle(20, 18, 2);
-    mushroom.fillCircle(28, 16, 1.5);
-    mushroom.fillCircle(24, 22, 1);
-    mushroom.fillCircle(30, 20, 1.5);
-
-    mushroom.generateTexture("mushroom", 50, 45);
-    mushroom.destroy();
-  }
-
-  createStumpSprite() {
-    const stump = this.add.graphics();
-
-    // Stump base (isometric cylinder)
-    stump.fillStyle(0x8d6e63);
-    stump.fillEllipse(25, 35, 30, 15);
-
-    // Stump sides
-    stump.fillStyle(0x5d4037);
-    stump.fillRect(10, 20, 30, 15);
-
-    // Stump top
-    stump.fillStyle(0xa1887f);
-    stump.fillEllipse(25, 20, 30, 15);
-
-    // Tree rings
-    stump.lineStyle(1, 0x6d4c41, 0.8);
-    stump.strokeEllipse(25, 20, 24, 12);
-    stump.strokeEllipse(25, 20, 18, 9);
-    stump.strokeEllipse(25, 20, 12, 6);
-
-    // Small mushroom growing on stump
-    stump.fillStyle(0xff8a65);
-    stump.fillEllipse(35, 18, 8, 5);
-    stump.fillStyle(0xffffff);
-    stump.fillCircle(35, 18, 1);
-
-    stump.generateTexture("stump", 50, 45);
-    stump.destroy();
+    // Decoration sprites are now loaded as PNG assets
+    // No need to generate them procedurally
   }
 
   createFoodSprite() {
@@ -831,6 +723,15 @@ class BlobGame extends Phaser.Scene {
       });
     }
 
+    // Day/Night toggle button
+    const dayNightToggleBtn = document.getElementById("day-night-toggle");
+    if (dayNightToggleBtn) {
+      dayNightToggleBtn.addEventListener("click", () => {
+        this.playButtonClickSound();
+        this.toggleDayNightMode();
+      });
+    }
+
     // Click handling is now integrated into camera drag controls
 
     this.input.on("dragstart", (pointer, gameObject) => {
@@ -871,6 +772,28 @@ class BlobGame extends Phaser.Scene {
             validatedPosition.y
           );
         }
+
+        // If this is a stump, move any dancing blobs with it
+        if (decoration.type === "stump") {
+          this.moveDancingBlobsWithStump(
+            decoration,
+            oldX,
+            oldY,
+            validatedPosition.x,
+            validatedPosition.y
+          );
+        }
+
+        // If this is a bounce pad, move any bouncing blobs with it
+        if (decoration.type === "bouncePad") {
+          this.moveBouncingBlobsWithPad(
+            decoration,
+            oldX,
+            oldY,
+            validatedPosition.x,
+            validatedPosition.y
+          );
+        }
       }
 
       // Check if this is a food item
@@ -894,7 +817,7 @@ class BlobGame extends Phaser.Scene {
 
       const position = this.getRandomGroundPosition();
       const foodSprite = this.add.image(position.x, position.y, "bug");
-      foodSprite.setScale(1.5);
+      foodSprite.setScale(1.0);
       foodSprite.setInteractive();
       foodSprite.setDepth(position.y + 100); // Set depth for proper layering
 
@@ -929,11 +852,11 @@ class BlobGame extends Phaser.Scene {
       this.coins -= decoration.cost;
 
       const position = this.getRandomGroundPosition();
-      const decorSprite = this.add.image(
-        position.x,
-        position.y,
-        decoration.key
-      );
+
+      // Choose the appropriate sprite key based on day/night mode
+      const spriteKey = this.isNightMode ? decoration.nightKey : decoration.key;
+
+      const decorSprite = this.add.image(position.x, position.y, spriteKey);
       decorSprite.setInteractive();
       decorSprite.setDepth(position.y + 500); // Higher depth to ensure visibility
 
@@ -942,10 +865,14 @@ class BlobGame extends Phaser.Scene {
       this.input.setDraggable(decorSprite);
 
       decorSprite.setScale(0);
+
+      // Decoration PNG assets use 100% scale (no variation)
+      const targetScale = 1.0;
+
       this.tweens.add({
         targets: decorSprite,
-        scaleX: 1,
-        scaleY: 1,
+        scaleX: targetScale,
+        scaleY: targetScale,
         duration: 500,
         ease: "Back.easeOut",
       });
@@ -955,6 +882,8 @@ class BlobGame extends Phaser.Scene {
         x: position.x,
         y: position.y,
         type: type,
+        dayKey: decoration.key,
+        nightKey: decoration.nightKey,
       });
 
       this.updateUI();
@@ -979,8 +908,9 @@ class BlobGame extends Phaser.Scene {
 
     const position = this.findSafePosition();
 
-    // Random size variation between 50% and 100%
-    const randomScale = 0.5 + Math.random() * 0.5;
+    // Different scaling for PNG vs generated sprites
+    let randomScale;
+    let isPngAsset = false;
 
     // Create the main blob sprite first - try PNG first, then fallback, then emergency
     let sprite;
@@ -991,14 +921,21 @@ class BlobGame extends Phaser.Scene {
       if (this.textures.exists(type.key)) {
         sprite = this.add.image(position.x, position.y, type.key);
         spriteSource = "PNG";
+        isPngAsset = true;
+        // PNG blob assets use varied scale for visual interest
+        randomScale = 0.8 + Math.random() * 0.4; // 80% to 120%
       } else if (this.textures.exists(type.fallbackKey)) {
         // Use fallback sprite if PNG failed to load
         sprite = this.add.image(position.x, position.y, type.fallbackKey);
         spriteSource = "fallback";
+        isPngAsset = true;
+        randomScale = 0.8 + Math.random() * 0.4; // 80% to 120%
       } else if (this.textures.exists(type.emergencyKey)) {
         // Use emergency sprite
         sprite = this.add.image(position.x, position.y, type.emergencyKey);
         spriteSource = "emergency";
+        isPngAsset = true;
+        randomScale = 0.8 + Math.random() * 0.4; // 80% to 120%
       } else {
         // Last resort: create a simple colored circle directly
         sprite = this.add.graphics();
@@ -1012,6 +949,9 @@ class BlobGame extends Phaser.Scene {
         sprite.x = position.x;
         sprite.y = position.y;
         spriteSource = "direct graphics";
+        isPngAsset = false;
+        // Generated sprites use smaller scale
+        randomScale = 0.25 + Math.random() * 0.25; // 25% to 50%
       }
     } catch (error) {
       console.error(`Error creating sprite for ${type.key}:`, error);
@@ -1022,6 +962,8 @@ class BlobGame extends Phaser.Scene {
       sprite.x = position.x;
       sprite.y = position.y;
       spriteSource = "error fallback";
+      isPngAsset = false;
+      randomScale = 0.25 + Math.random() * 0.25; // 25% to 50%
     }
 
     if (sprite.setScale) sprite.setScale(randomScale);
@@ -1780,14 +1722,634 @@ class BlobGame extends Phaser.Scene {
     });
   }
 
+  // Move dancing blobs when their stump is dragged
+  moveDancingBlobsWithStump(stump, oldStumpX, oldStumpY, newStumpX, newStumpY) {
+    // Find all blobs dancing on this stump
+    const dancingBlobs = this.blobs.filter(
+      (blob) => blob.behavior === "dancing" && blob.dancingOnStump === stump
+    );
+
+    dancingBlobs.forEach((blob) => {
+      // Calculate the offset from old stump position
+      const offsetX = blob.x - oldStumpX;
+      const offsetY = blob.y - oldStumpY;
+
+      // Move blob to maintain relative position to stump
+      blob.x = newStumpX + offsetX;
+      blob.y = newStumpY + offsetY;
+      blob.sprite.x = blob.x;
+      blob.sprite.y = blob.y;
+
+      // Move shadow with blob
+      if (blob.shadowSprite) {
+        blob.shadowSprite.x = blob.x - 5;
+        blob.shadowSprite.y = blob.y + 5;
+
+        // Update shadow depth to match new stump position
+        blob.shadowSprite.setDepth(newStumpY + 600);
+        blob.sprite.setDepth(newStumpY + 700);
+      }
+
+      // Update any active dancing tweens to use the new position
+      if (blob.sprite.scene && blob.sprite.scene.tweens) {
+        // Stop current dancing tween and restart it at new position
+        blob.sprite.scene.tweens.killTweensOf(blob.sprite);
+
+        // Restart the dancing animation at the new position
+        const danceDistance = 15;
+        this.tweens.add({
+          targets: blob.sprite,
+          x: newStumpX - danceDistance,
+          duration: 500,
+          ease: "Sine.easeInOut",
+          yoyo: true,
+          repeat: -1,
+          onYoyo: () => {
+            this.tweens.add({
+              targets: blob.sprite,
+              scaleY: blob.originalScale * 1.1,
+              duration: 100,
+              yoyo: true,
+              ease: "Power2.easeOut",
+            });
+          },
+          onRepeat: () => {
+            const currentTarget =
+              blob.sprite.x < newStumpX
+                ? newStumpX + danceDistance
+                : newStumpX - danceDistance;
+            this.tweens.add({
+              targets: blob.sprite,
+              x: currentTarget,
+              duration: 500,
+              ease: "Sine.easeInOut",
+            });
+          },
+        });
+      }
+    });
+  }
+
+  // Move bouncing blobs when their bounce pad is dragged
+  moveBouncingBlobsWithPad(bouncePad, oldPadX, oldPadY, newPadX, newPadY) {
+    // Find all blobs bouncing on this bounce pad
+    const bouncingBlobs = this.blobs.filter(
+      (blob) => blob.behavior === "bouncing" && blob.bouncingOnPad === bouncePad
+    );
+
+    bouncingBlobs.forEach((blob) => {
+      // Calculate the offset from old bounce pad position
+      const offsetX = blob.x - oldPadX;
+      const offsetY = blob.y - oldPadY;
+
+      // Move blob to maintain relative position to bounce pad
+      blob.x = newPadX + offsetX;
+      blob.y = newPadY + offsetY;
+      blob.sprite.x = blob.x;
+      blob.sprite.y = blob.y;
+
+      // Move shadow with blob
+      if (blob.shadowSprite) {
+        blob.shadowSprite.x = blob.x - 5;
+        blob.shadowSprite.y = blob.y + 5;
+
+        // Update shadow depth to match new bounce pad position
+        blob.shadowSprite.setDepth(newPadY + 600);
+        blob.sprite.setDepth(newPadY + 700);
+      }
+
+      // Update any active bouncing tweens to use the new position
+      if (blob.sprite.scene && blob.sprite.scene.tweens) {
+        // Stop current bouncing tween and restart it at new position
+        blob.sprite.scene.tweens.killTweensOf(blob.sprite);
+
+        // Restart the bouncing animation at the new position
+        const bounceHeight = 30;
+        this.tweens.add({
+          targets: blob.sprite,
+          y: newPadY - 10 - bounceHeight,
+          scaleX: blob.originalScale * 0.9,
+          scaleY: blob.originalScale * 1.2,
+          duration: 400,
+          ease: "Power2.easeOut",
+          yoyo: true,
+          repeat: -1,
+          onYoyo: () => {
+            this.tweens.add({
+              targets: blob.sprite,
+              scaleX: blob.originalScale * 1.1,
+              scaleY: blob.originalScale * 0.8,
+              duration: 100,
+              yoyo: true,
+              ease: "Power2.easeOut",
+            });
+          },
+          onRepeat: () => {
+            this.tweens.add({
+              targets: blob.sprite,
+              scaleX: blob.originalScale * 0.9,
+              scaleY: blob.originalScale * 1.2,
+              duration: 100,
+              ease: "Power2.easeOut",
+            });
+          },
+        });
+      }
+    });
+  }
+
+  // Stump dancing functions
+  findNearbyStump(blob) {
+    const stumps = this.decorations.filter((d) => d.type === "stump");
+    let closestStump = null;
+    let closestDistance = Infinity;
+
+    stumps.forEach((stump) => {
+      const distance = Phaser.Math.Distance.Between(
+        blob.x,
+        blob.y,
+        stump.x,
+        stump.y
+      );
+      if (distance < 150 && distance < closestDistance) {
+        closestDistance = distance;
+        closestStump = stump;
+      }
+    });
+
+    return closestStump;
+  }
+
+  isStumpOccupied(stump, tolerance = 40) {
+    return this.blobs.some((blob) => {
+      if (blob.behavior !== "dancing") return false;
+      const distance = Phaser.Math.Distance.Between(
+        blob.x,
+        blob.y,
+        stump.x,
+        stump.y
+      );
+      return distance < tolerance;
+    });
+  }
+
+  jumpOntoStump(blob, stump) {
+    if (blob.moveTween) {
+      blob.moveTween.stop();
+    }
+
+    blob.behavior = "jumping_to_stump";
+    blob.targetStump = stump;
+
+    // Jump animation to the stump
+    this.tweens.add({
+      targets: blob.sprite,
+      x: stump.x,
+      y: stump.y - 20, // Position on top of stump
+      scaleX: blob.originalScale * 1.2,
+      scaleY: blob.originalScale * 0.8,
+      duration: 800,
+      ease: "Power2.easeOut",
+      onComplete: () => {
+        this.startStumpDance(blob, stump);
+      },
+    });
+
+    // Move shadow to stump position
+    if (blob.shadowSprite) {
+      this.tweens.add({
+        targets: blob.shadowSprite,
+        x: stump.x - 5,
+        y: stump.y + 5,
+        duration: 800,
+        ease: "Power2.easeOut",
+      });
+    }
+  }
+
+  startStumpDance(blob, stump) {
+    blob.behavior = "dancing";
+    blob.x = stump.x;
+    blob.y = stump.y - 20;
+
+    // Store reference to the stump the blob is dancing on
+    blob.dancingOnStump = stump;
+
+    // Make the blob non-interactive while dancing
+    blob.sprite.disableInteractive();
+
+    // Create dancing animation - side to side movement
+    const danceDistance = 15;
+    this.tweens.add({
+      targets: blob.sprite,
+      x: stump.x - danceDistance,
+      duration: 500,
+      ease: "Sine.easeInOut",
+      yoyo: true,
+      repeat: -1, // Infinite repeat
+      onYoyo: () => {
+        // Add a little bounce on each direction change
+        this.tweens.add({
+          targets: blob.sprite,
+          scaleY: blob.originalScale * 1.1,
+          duration: 100,
+          yoyo: true,
+          ease: "Power2.easeOut",
+        });
+      },
+      onRepeat: () => {
+        // Alternate between left and right
+        const currentTarget =
+          blob.sprite.x < stump.x
+            ? stump.x + danceDistance
+            : stump.x - danceDistance;
+        this.tweens.add({
+          targets: blob.sprite,
+          x: currentTarget,
+          duration: 500,
+          ease: "Sine.easeInOut",
+        });
+      },
+    });
+
+    // Add floating musical notes effect
+    this.time.addEvent({
+      delay: 1000,
+      callback: () => {
+        if (blob.behavior === "dancing") {
+          this.addMusicalNote(blob.x, blob.y - 30);
+        }
+      },
+      repeat: 19, // 20 seconds of notes
+      callbackScope: this,
+    });
+
+    // Dance for 20 seconds then jump off
+    this.time.delayedCall(20000, () => {
+      if (blob.sprite && blob.sprite.active && blob.behavior === "dancing") {
+        this.jumpOffStump(blob, stump);
+      }
+    });
+  }
+
+  jumpOffStump(blob, stump) {
+    blob.behavior = "jumping_off_stump";
+
+    // Clear the stump reference
+    blob.dancingOnStump = null;
+
+    // Re-enable blob interactivity
+    blob.sprite.setInteractive();
+
+    // Stop all dancing tweens
+    this.tweens.killTweensOf(blob.sprite);
+
+    // Add 20% happiness for dancing
+    const happinessGain = 20;
+    blob.happiness = Math.min(
+      blob.maxHappiness,
+      blob.happiness + happinessGain
+    );
+
+    // Show happiness gain text
+    this.showFloatingText(
+      `+${happinessGain}% Happy!`,
+      blob.x,
+      blob.y - 40,
+      0x4caf50
+    );
+
+    // Jump off animation
+    const jumpTarget = this.findSafePosition(blob);
+    this.tweens.add({
+      targets: blob.sprite,
+      x: jumpTarget.x,
+      y: jumpTarget.y,
+      scaleX: blob.originalScale * 1.3,
+      scaleY: blob.originalScale * 0.7,
+      duration: 600,
+      ease: "Power2.easeOut",
+      onUpdate: () => {
+        // Update blob position for collision detection
+        blob.x = blob.sprite.x;
+        blob.y = blob.sprite.y;
+      },
+      onComplete: () => {
+        // Reset blob to normal wandering behavior
+        blob.behavior = "wandering";
+        blob.targetStump = null;
+
+        // Reset scale
+        blob.sprite.scaleX = blob.originalScale;
+        blob.sprite.scaleY = blob.originalScale;
+
+        // Update depth based on new position
+        blob.sprite.setDepth(blob.y + 1000);
+      },
+    });
+
+    // Move shadow with jump
+    if (blob.shadowSprite) {
+      this.tweens.add({
+        targets: blob.shadowSprite,
+        x: jumpTarget.x - 5,
+        y: jumpTarget.y + 9,
+        duration: 600,
+        ease: "Power2.easeOut",
+        onComplete: () => {
+          blob.shadowSprite.setDepth(100);
+        },
+      });
+    }
+  }
+
+  addMusicalNote(x, y) {
+    // Create a simple musical note graphic
+    const note = this.add.graphics();
+    note.fillStyle(0x4caf50, 0.8);
+    note.fillCircle(0, 0, 3);
+    note.fillRect(-1, -8, 2, 8);
+    note.x = x + (Math.random() - 0.5) * 20;
+    note.y = y;
+    note.setDepth(2000);
+
+    // Animate note floating up and fading
+    this.tweens.add({
+      targets: note,
+      y: y - 40,
+      alpha: 0,
+      duration: 2000,
+      ease: "Power2.easeOut",
+      onComplete: () => note.destroy(),
+    });
+  }
+
+  // Bounce pad bouncing functions
+  findNearbyBouncePad(blob) {
+    const bouncePads = this.decorations.filter((d) => d.type === "bouncePad");
+    let closestBouncePad = null;
+    let closestDistance = Infinity;
+
+    bouncePads.forEach((bouncePad) => {
+      const distance = Phaser.Math.Distance.Between(
+        blob.x,
+        blob.y,
+        bouncePad.x,
+        bouncePad.y
+      );
+      if (distance < 150 && distance < closestDistance) {
+        closestDistance = distance;
+        closestBouncePad = bouncePad;
+      }
+    });
+
+    return closestBouncePad;
+  }
+
+  isBouncePadOccupied(bouncePad, tolerance = 40) {
+    return this.blobs.some((blob) => {
+      if (blob.behavior !== "bouncing") return false;
+      const distance = Phaser.Math.Distance.Between(
+        blob.x,
+        blob.y,
+        bouncePad.x,
+        bouncePad.y
+      );
+      return distance < tolerance;
+    });
+  }
+
+  jumpOntoBouncePad(blob, bouncePad) {
+    if (blob.moveTween) {
+      blob.moveTween.stop();
+    }
+
+    blob.behavior = "jumping_to_bouncepad";
+    blob.targetBouncePad = bouncePad;
+
+    // Jump animation to the bounce pad
+    this.tweens.add({
+      targets: blob.sprite,
+      x: bouncePad.x,
+      y: bouncePad.y - 10, // Position on top of bounce pad
+      scaleX: blob.originalScale * 1.2,
+      scaleY: blob.originalScale * 0.8,
+      duration: 800,
+      ease: "Power2.easeOut",
+      onComplete: () => {
+        this.startBouncePadBouncing(blob, bouncePad);
+      },
+    });
+
+    // Move shadow to bounce pad position
+    if (blob.shadowSprite) {
+      this.tweens.add({
+        targets: blob.shadowSprite,
+        x: bouncePad.x - 5,
+        y: bouncePad.y + 5,
+        duration: 800,
+        ease: "Power2.easeOut",
+      });
+    }
+  }
+
+  startBouncePadBouncing(blob, bouncePad) {
+    blob.behavior = "bouncing";
+    blob.x = bouncePad.x;
+    blob.y = bouncePad.y - 10;
+
+    // Store reference to the bounce pad the blob is bouncing on
+    blob.bouncingOnPad = bouncePad;
+
+    // Make the blob non-interactive while bouncing
+    blob.sprite.disableInteractive();
+
+    // Create bouncing animation - up and down movement
+    const bounceHeight = 30;
+    this.tweens.add({
+      targets: blob.sprite,
+      y: bouncePad.y - 10 - bounceHeight,
+      scaleX: blob.originalScale * 0.9,
+      scaleY: blob.originalScale * 1.2,
+      duration: 400,
+      ease: "Power2.easeOut",
+      yoyo: true,
+      repeat: -1, // Infinite repeat
+      onYoyo: () => {
+        // Squash effect when landing
+        this.tweens.add({
+          targets: blob.sprite,
+          scaleX: blob.originalScale * 1.1,
+          scaleY: blob.originalScale * 0.8,
+          duration: 100,
+          yoyo: true,
+          ease: "Power2.easeOut",
+        });
+      },
+      onRepeat: () => {
+        // Stretch effect when bouncing up
+        this.tweens.add({
+          targets: blob.sprite,
+          scaleX: blob.originalScale * 0.9,
+          scaleY: blob.originalScale * 1.2,
+          duration: 100,
+          ease: "Power2.easeOut",
+        });
+      },
+    });
+
+    // Add bouncing sound effects periodically
+    this.time.addEvent({
+      delay: 800, // Match bounce timing
+      callback: () => {
+        if (blob.behavior === "bouncing") {
+          this.playBounceSound();
+        }
+      },
+      repeat: 24, // 20 seconds of bouncing
+      callbackScope: this,
+    });
+
+    // Bounce for 20 seconds then jump off
+    this.time.delayedCall(20000, () => {
+      if (blob.sprite && blob.sprite.active && blob.behavior === "bouncing") {
+        this.jumpOffBouncePad(blob, bouncePad);
+      }
+    });
+  }
+
+  jumpOffBouncePad(blob, bouncePad) {
+    blob.behavior = "jumping_off_bouncepad";
+
+    // Clear the bounce pad reference
+    blob.bouncingOnPad = null;
+
+    // Re-enable blob interactivity
+    blob.sprite.setInteractive();
+
+    // Stop all bouncing tweens
+    this.tweens.killTweensOf(blob.sprite);
+
+    // Add 20% happiness for bouncing
+    const happinessGain = 20;
+    blob.happiness = Math.min(
+      blob.maxHappiness,
+      blob.happiness + happinessGain
+    );
+
+    // Show happiness gain text
+    this.showFloatingText(
+      `+${happinessGain}% Happy!`,
+      blob.x,
+      blob.y - 40,
+      0x4caf50
+    );
+
+    // Jump off animation with extra bounce
+    const jumpTarget = this.findSafePosition(blob);
+    this.tweens.add({
+      targets: blob.sprite,
+      x: jumpTarget.x,
+      y: jumpTarget.y,
+      scaleX: blob.originalScale * 1.4,
+      scaleY: blob.originalScale * 0.6,
+      duration: 600,
+      ease: "Bounce.easeOut",
+      onUpdate: () => {
+        // Update blob position for collision detection
+        blob.x = blob.sprite.x;
+        blob.y = blob.sprite.y;
+      },
+      onComplete: () => {
+        // Reset blob to normal wandering behavior
+        blob.behavior = "wandering";
+        blob.targetBouncePad = null;
+
+        // Reset scale
+        blob.sprite.scaleX = blob.originalScale;
+        blob.sprite.scaleY = blob.originalScale;
+
+        // Update depth based on new position
+        blob.sprite.setDepth(blob.y + 1000);
+      },
+    });
+
+    // Move shadow with jump
+    if (blob.shadowSprite) {
+      this.tweens.add({
+        targets: blob.shadowSprite,
+        x: jumpTarget.x - 5,
+        y: jumpTarget.y + 9,
+        duration: 600,
+        ease: "Bounce.easeOut",
+        onComplete: () => {
+          blob.shadowSprite.setDepth(100);
+        },
+      });
+    }
+  }
+
+  playBounceSound() {
+    // Simple bounce sound effect using Web Audio API
+    if (this.audioContext && this.soundEnabled) {
+      try {
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+
+        oscillator.frequency.setValueAtTime(400, this.audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(
+          200,
+          this.audioContext.currentTime + 0.1
+        );
+
+        gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(
+          0.01,
+          this.audioContext.currentTime + 0.1
+        );
+
+        oscillator.start(this.audioContext.currentTime);
+        oscillator.stop(this.audioContext.currentTime + 0.1);
+      } catch (error) {
+        // Silently fail if audio context issues
+      }
+    }
+  }
+
   setNewTarget(blob) {
-    if (blob.behavior === "sleeping") return;
+    if (
+      blob.behavior === "sleeping" ||
+      blob.behavior === "dancing" ||
+      blob.behavior === "bouncing"
+    )
+      return;
 
     // Check if blob should try to sleep on a rock (20% chance)
     if (Math.random() < 0.2) {
       const nearbyRock = this.findNearbyRock(blob);
       if (nearbyRock && !this.isRockOccupied(nearbyRock)) {
         this.jumpOntoRock(blob, nearbyRock);
+        return;
+      }
+    }
+
+    // Check if blob should try to dance on a stump (15% chance)
+    if (Math.random() < 0.15) {
+      const nearbyStump = this.findNearbyStump(blob);
+      if (nearbyStump && !this.isStumpOccupied(nearbyStump)) {
+        this.jumpOntoStump(blob, nearbyStump);
+        return;
+      }
+    }
+
+    // Check if blob should try to bounce on a bounce pad (18% chance)
+    if (Math.random() < 0.18) {
+      const nearbyBouncePad = this.findNearbyBouncePad(blob);
+      if (nearbyBouncePad && !this.isBouncePadOccupied(nearbyBouncePad)) {
+        this.jumpOntoBouncePad(blob, nearbyBouncePad);
         return;
       }
     }
@@ -2202,7 +2764,7 @@ class BlobGame extends Phaser.Scene {
       if (!blob.statusIcon) {
         blob.statusIcon = this.add.image(0, 0, "sadFace");
         blob.statusIcon.setDepth(blob.sprite.depth + 2);
-        blob.statusIcon.setScale(0.8);
+        blob.statusIcon.setScale(1.0);
       }
 
       // Position sad face icon right next to the happiness bar (to the right)
@@ -2231,7 +2793,7 @@ class BlobGame extends Phaser.Scene {
       if (!blob.sparkleEffect) {
         try {
           blob.sparkleEffect = this.add.particles(blob.x, blob.y, "sparkle", {
-            scale: { start: 0.4, end: 0 },
+            scale: { start: 0.2, end: 0 },
             speed: { min: 20, max: 40 },
             lifespan: 1200,
             frequency: 300,
@@ -2341,7 +2903,7 @@ class BlobGame extends Phaser.Scene {
     const position = this.getRandomGroundPosition();
     const value = Phaser.Math.Between(5, 15);
     const coinSprite = this.add.image(position.x, position.y, "coin");
-    coinSprite.setScale(0.6); // Keep same visual size since coin texture is now twice as big
+    coinSprite.setScale(1.0); // Full scale
     coinSprite.setDepth(10000); // Always in front of everything else
 
     // Add idle sine wave animation
@@ -2825,7 +3387,7 @@ class BlobGame extends Phaser.Scene {
 
     // Add sparkle effect for returning friends
     const sparkles = this.add.particles(400, 120, "sparkle", {
-      scale: { start: 0.3, end: 0 },
+      scale: { start: 0.15, end: 0 },
       speed: { min: 20, max: 40 },
       lifespan: 1000,
       quantity: 3,
@@ -3411,43 +3973,53 @@ class BlobGame extends Phaser.Scene {
   // Music System Methods
   initializeBackgroundMusic() {
     try {
-      // Use HTML5 Audio for better compatibility with longer audio files
-      this.backgroundMusic = new Audio("BlobGardenSoundtrack.mp3");
-      this.backgroundMusic.loop = true;
-      this.backgroundMusic.volume = 0.5; // Set to 50% volume for background ambiance
+      // Initialize both day and night music tracks
+      this.dayMusic = new Audio("BlobGardenSoundtrack.mp3");
+      this.nightMusic = new Audio("BlobGardenSoundtrack_night.mp3");
 
-      // Mobile-specific settings
-      this.backgroundMusic.preload = "auto";
-      this.backgroundMusic.crossOrigin = "anonymous";
+      // Set up both tracks
+      [this.dayMusic, this.nightMusic].forEach((track, index) => {
+        const trackName = index === 0 ? "day" : "night";
+        track.loop = true;
+        track.volume = 0.5;
+        track.preload = "auto";
+        track.crossOrigin = "anonymous";
 
-      // Add event listeners for loading
-      this.backgroundMusic.addEventListener("canplaythrough", () => {
-        console.log("✅ Background music loaded successfully");
-      });
+        track.addEventListener("canplaythrough", () => {
+          console.log(`✅ ${trackName} music loaded successfully`);
+        });
 
-      this.backgroundMusic.addEventListener("loadstart", () => {
-        console.log("🎵 Music loading started");
-      });
+        track.addEventListener("loadstart", () => {
+          console.log(`🎵 ${trackName} music loading started`);
+        });
 
-      this.backgroundMusic.addEventListener("canplay", () => {
-        console.log("🎵 Music can start playing");
-      });
+        track.addEventListener("canplay", () => {
+          console.log(`🎵 ${trackName} music can start playing`);
+        });
 
-      this.backgroundMusic.addEventListener("error", (e) => {
-        console.error("❌ Failed to load background music:", e);
-        console.error("Error details:", {
-          code: e.target?.error?.code,
-          message: e.target?.error?.message,
+        track.addEventListener("error", (e) => {
+          console.error(`❌ Failed to load ${trackName} music:`, e);
+          // If night music fails to load, fall back to day music
+          if (trackName === "night") {
+            console.log("🔄 Falling back to day music for nighttime");
+            this.nightMusic = this.dayMusic;
+          }
+        });
+
+        track.addEventListener("stalled", () => {
+          console.warn(`⚠️ ${trackName} music loading stalled`);
+        });
+
+        track.addEventListener("suspend", () => {
+          console.log(`⏸️ ${trackName} music loading suspended`);
         });
       });
 
-      this.backgroundMusic.addEventListener("stalled", () => {
-        console.warn("⚠️ Music loading stalled");
-      });
+      // Set current music based on night mode state
+      this.backgroundMusic = this.isNightMode ? this.nightMusic : this.dayMusic;
+      this.currentMusicMode = this.isNightMode ? "night" : "day";
 
-      this.backgroundMusic.addEventListener("suspend", () => {
-        console.log("⏸️ Music loading suspended");
-      });
+      console.log(`🎵 Initialized ${this.currentMusicMode} music`);
 
       // Load music preference and volume
       this.loadMusicPreference();
@@ -3656,6 +4228,240 @@ class BlobGame extends Phaser.Scene {
 
     // Update button appearance based on loaded volume
     this.updateMusicButtonAppearance(volume);
+  }
+
+  // Day/Night Mode Methods
+  switchToNightMusic() {
+    if (!this.nightMusic || this.currentMusicMode === "night") return;
+
+    console.log("🌙 Switching to nighttime music");
+    const currentVolume = this.backgroundMusic
+      ? this.backgroundMusic.volume
+      : 0.5;
+    const wasPlaying = this.backgroundMusic && !this.backgroundMusic.paused;
+
+    // Fade out current music
+    if (this.backgroundMusic && wasPlaying) {
+      this.fadeOutMusic(this.backgroundMusic, () => {
+        // Switch to night music
+        this.backgroundMusic = this.nightMusic;
+        this.backgroundMusic.volume = currentVolume;
+        this.currentMusicMode = "night";
+
+        // Start night music if day music was playing
+        if (this.musicStarted && currentVolume > 0) {
+          this.backgroundMusic.play().catch(console.error);
+        }
+      });
+    } else {
+      // Just switch without fading if not playing
+      this.backgroundMusic = this.nightMusic;
+      this.backgroundMusic.volume = currentVolume;
+      this.currentMusicMode = "night";
+    }
+  }
+
+  switchToDayMusic() {
+    if (!this.dayMusic || this.currentMusicMode === "day") return;
+
+    console.log("☀️ Switching to daytime music");
+    const currentVolume = this.backgroundMusic
+      ? this.backgroundMusic.volume
+      : 0.5;
+    const wasPlaying = this.backgroundMusic && !this.backgroundMusic.paused;
+
+    // Fade out current music
+    if (this.backgroundMusic && wasPlaying) {
+      this.fadeOutMusic(this.backgroundMusic, () => {
+        // Switch to day music
+        this.backgroundMusic = this.dayMusic;
+        this.backgroundMusic.volume = currentVolume;
+        this.currentMusicMode = "day";
+
+        // Start day music if night music was playing
+        if (this.musicStarted && currentVolume > 0) {
+          this.backgroundMusic.play().catch(console.error);
+        }
+      });
+    } else {
+      // Just switch without fading if not playing
+      this.backgroundMusic = this.dayMusic;
+      this.backgroundMusic.volume = currentVolume;
+      this.currentMusicMode = "day";
+    }
+  }
+
+  fadeOutMusic(track, callback) {
+    if (!track) {
+      callback();
+      return;
+    }
+
+    const originalVolume = track.volume;
+    const fadeSteps = 20;
+    const fadeInterval = 50; // ms
+    let currentStep = 0;
+
+    const fadeTimer = setInterval(() => {
+      currentStep++;
+      track.volume = originalVolume * (1 - currentStep / fadeSteps);
+
+      if (currentStep >= fadeSteps) {
+        clearInterval(fadeTimer);
+        track.pause();
+        track.volume = originalVolume;
+        callback();
+      }
+    }, fadeInterval);
+  }
+
+  // Background switching methods
+  switchToNightBackground() {
+    console.log("🌙 Switching to nighttime background");
+
+    // Hide day background, show night background
+    if (this.dayBackground) {
+      this.dayBackground.setVisible(false);
+    }
+
+    if (this.nightBackground) {
+      this.nightBackground.setVisible(true);
+    }
+  }
+
+  switchToDayBackground() {
+    console.log("☀️ Switching to daytime background");
+
+    // Show day background, hide night background
+    if (this.dayBackground) {
+      this.dayBackground.setVisible(true);
+    }
+
+    if (this.nightBackground) {
+      this.nightBackground.setVisible(false);
+    }
+  }
+
+  // Create both day and night backgrounds
+  createBackground() {
+    try {
+      // Use 100% scale for the new larger background images
+      // This ensures the backgrounds display at their full intended size
+      const targetScale = 1.0; // Full scale for larger background images
+      let targetWidth = 800;
+      let targetHeight = 600;
+
+      // Create day background first
+      if (this.textures.exists("garden_background")) {
+        this.dayBackground = this.add.image(0, 0, "garden_background");
+        this.dayBackground.setOrigin(0.5, 0.5);
+        this.dayBackground.setScale(targetScale);
+        this.dayBackground.setDepth(-1);
+
+        // Store the target dimensions
+        targetWidth = this.dayBackground.width * targetScale;
+        targetHeight = this.dayBackground.height * targetScale;
+
+        console.log(`✅ Day background created with scale: ${targetScale}`);
+      }
+
+      // Create night background with the SAME scale
+      if (this.textures.exists("garden_background_night")) {
+        this.nightBackground = this.add.image(0, 0, "garden_background_night");
+        this.nightBackground.setOrigin(0.5, 0.5);
+        this.nightBackground.setScale(targetScale);
+        this.nightBackground.setDepth(-1);
+        this.nightBackground.setVisible(false); // Start hidden
+
+        console.log(`✅ Night background created with scale: ${targetScale}`);
+      }
+
+      // Set the background dimensions for camera bounds
+      this.backgroundWidth = targetWidth;
+      this.backgroundHeight = targetHeight;
+
+      // Show appropriate background based on current mode
+      if (this.isNightMode) {
+        if (this.dayBackground) this.dayBackground.setVisible(false);
+        if (this.nightBackground) this.nightBackground.setVisible(true);
+      } else {
+        if (this.dayBackground) this.dayBackground.setVisible(true);
+        if (this.nightBackground) this.nightBackground.setVisible(false);
+      }
+    } catch (error) {
+      console.error("Error creating backgrounds:", error);
+      // Create fallback background
+      const fallbackBg = this.add.graphics();
+      fallbackBg.fillStyle(0x2d5a27); // Dark green
+      fallbackBg.fillRect(-400, -300, 800, 600);
+      this.backgroundWidth = 800;
+      this.backgroundHeight = 600;
+    }
+  }
+
+  // Toggle day/night mode
+  toggleDayNightMode() {
+    this.isNightMode = !this.isNightMode;
+    console.log(`🔄 Toggling to ${this.isNightMode ? "night" : "day"} mode`);
+
+    if (this.isNightMode) {
+      this.switchToNightMusic();
+      this.switchToNightBackground();
+      this.applyNightFilter();
+    } else {
+      this.switchToDayMusic();
+      this.switchToDayBackground();
+      this.removeNightFilter();
+    }
+
+    // Update existing decorations to use day/night textures
+    this.updateDecorationTextures();
+
+    // Update the toggle button appearance
+    this.updateDayNightButton();
+  }
+
+  updateDecorationTextures() {
+    // Update all existing decorations to use the appropriate day/night texture
+    this.decorations.forEach((decoration) => {
+      const spriteKey = this.isNightMode
+        ? decoration.nightKey
+        : decoration.dayKey;
+      if (decoration.sprite && decoration.sprite.setTexture) {
+        decoration.sprite.setTexture(spriteKey);
+      }
+    });
+  }
+
+  applyNightFilter() {
+    if (!this.nightFilter) {
+      this.nightFilter = this.add.rectangle(
+        0,
+        0,
+        this.gameWidth * 2,
+        this.gameHeight * 2,
+        0x000080,
+        0.3
+      );
+      this.nightFilter.setDepth(1000);
+    }
+  }
+
+  removeNightFilter() {
+    if (this.nightFilter) {
+      this.nightFilter.destroy();
+      this.nightFilter = null;
+    }
+  }
+
+  updateDayNightButton() {
+    const button = document.getElementById("day-night-toggle");
+    if (button) {
+      button.textContent = this.isNightMode ? "☀️" : "🌙";
+      button.title = this.isNightMode
+        ? "Switch to Day Mode"
+        : "Switch to Night Mode";
+    }
   }
 }
 

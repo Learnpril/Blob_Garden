@@ -1,85 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Blob Garden - Virtual Pet Game</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <div class="game-container">
-        <header>
-            <div class="logo-container">
-                <img src="blobgardenlogo.png" alt="Blob Garden" class="logo">
-            </div>
-        </header>
-        
-        <div class="game-area">
-            <div id="phaser-game"></div>
-            <!-- Coins display inside game area -->
-            <div class="game-ui-overlay">
-                <div class="coins-display">
-                    Coins: <span id="coins">100</span>
-                </div>
-            </div>
-            <!-- Audio controls positioned separately on the left -->
-            <div class="audio-controls">
-                <button id="music-toggle-btn" class="audio-btn" title="Music Volume">🎵</button>
-                <button id="sound-toggle-btn" class="audio-btn" title="Toggle Sound Effects">🔊</button>
-            </div>
-            <div id="volume-slider" class="volume-slider">
-                <div class="volume-label">Music Volume</div>
-                <input type="range" id="music-volume" min="0" max="100" value="50" title="Music Volume">
-            </div>
+      <header>
+        <div class="logo-container">
+          <img src="blobgardenlogo.png" alt="Blob Garden" class="logo" />
         </div>
-        
-        <div class="controls">
-            <button id="feed-btn" class="action-btn">🍗 Feed (10 coins)</button>
-            <button id="decorate-btn" class="action-btn">🏀 Add Bounce Pad (25 coins)</button>
-            <button id="rock-btn" class="action-btn">🪨 Add Rock (15 coins)</button>
-            <button id="water-btn" class="action-btn">💧 Add Water (20 coins)</button>
-            <button id="mushroom-btn" class="action-btn">🍄 Add Mushroom (30 coins)</button>
-            <button id="stump-btn" class="action-btn">🪵 Add Stump (35 coins)</button>
-        </div>
-        
-        <div class="blob-collection">
-            <div class="collection-header">
-                <h3>Your Blobs</h3>
-                <button id="collection-btn" class="collection-view-btn">📖 View Collection</button>
-            <button id="test-offline-btn" class="collection-view-btn" style="margin-left: 10px;">🌙 Test Offline Progress</button>
-            </div>
-            <div id="blob-list"></div>
-        </div>
+      </header>
 
-        <!-- Collection Modal -->
-        <div id="collection-modal" class="modal" style="display: none;">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>🌟 Blob Collection Album 🌟</h2>
-                    <span class="close">&times;</span>
-                </div>
-                <div id="collection-stats" class="collection-stats"></div>
-                <div id="full-collection" class="full-collection"></div>
-            </div>
+      <div class="game-area">
+        <div id="phaser-game"></div>
+        <!-- Coins display inside game area -->
+        <div class="game-ui-overlay">
+          <div class="coins-display">Coins: <span id="coins">100</span></div>
         </div>
+        <!-- Audio controls positioned separately on the left -->
+        <div class="audio-controls">
+          <button id="music-toggle-btn" class="audio-btn" title="Music Volume">
+            🎵
+          </button>
+          <button
+            id="sound-toggle-btn"
+            class="audio-btn"
+            title="Toggle Sound Effects"
+          >
+            🔊
+          </button>
+          <button
+            id="day-night-toggle"
+            class="audio-btn"
+            title="Switch to Night Mode"
+          >
+            🌙
+          </button>
+        </div>
+        <div id="volume-slider" class="volume-slider">
+          <div class="volume-label">Music Volume</div>
+          <input
+            type="range"
+            id="music-volume"
+            min="0"
+            max="100"
+            value="50"
+            title="Music Volume"
+          />
+        </div>
+      </div>
 
-        <!-- Offline Progress Modal -->
-        <div id="offline-progress-modal" class="modal" style="display: none;">
-            <div class="modal-content offline-progress-content">
-                <div class="modal-header">
-                    <h2>🌙 Welcome Back! 🌙</h2>
-                </div>
-                <div id="offline-progress-content" class="offline-progress-body">
-                    <!-- Content will be populated by JavaScript -->
-                </div>
-                <div class="modal-footer">
-                    <button id="offline-progress-close" class="action-btn">Continue Playing</button>
-                </div>
-            </div>
+      <div class="controls">
+        <button id="feed-btn" class="action-btn">🍗 Feed (10 coins)</button>
+        <button id="decorate-btn" class="action-btn">
+          🏀 Add Bounce Pad (25 coins)
+        </button>
+        <button id="rock-btn" class="action-btn">🪨 Add Rock (15 coins)</button>
+        <button id="water-btn" class="action-btn">
+          💧 Add Water (20 coins)
+        </button>
+        <button id="mushroom-btn" class="action-btn">
+          🍄 Add Mushroom (30 coins)
+        </button>
+        <button id="stump-btn" class="action-btn">
+          🪵 Add Stump (35 coins)
+        </button>
+      </div>
+
+      <div class="blob-collection">
+        <div class="collection-header">
+          <h3>Your Blobs</h3>
+          <button id="collection-btn" class="collection-view-btn">
+            📖 View Collection
+          </button>
+          <button
+            id="test-offline-btn"
+            class="collection-view-btn"
+            style="margin-left: 10px"
+          >
+            🌙 Test Offline Progress
+          </button>
         </div>
+        <div id="blob-list"></div>
+      </div>
+
+      <!-- Collection Modal -->
+      <div id="collection-modal" class="modal" style="display: none">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>🌟 Blob Collection Album 🌟</h2>
+            <span class="close">&times;</span>
+          </div>
+          <div id="collection-stats" class="collection-stats"></div>
+          <div id="full-collection" class="full-collection"></div>
+        </div>
+      </div>
+
+      <!-- Offline Progress Modal -->
+      <div id="offline-progress-modal" class="modal" style="display: none">
+        <div class="modal-content offline-progress-content">
+          <div class="modal-header">
+            <h2>🌙 Welcome Back! 🌙</h2>
+          </div>
+          <div id="offline-progress-content" class="offline-progress-body">
+            <!-- Content will be populated by JavaScript -->
+          </div>
+          <div class="modal-footer">
+            <button id="offline-progress-close" class="action-btn">
+              Continue Playing
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
-    
+
     <script src="game_working.js"></script>
-</body>
+  </body>
 </html>
