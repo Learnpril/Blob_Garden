@@ -26,6 +26,22 @@ class BlobGame extends Phaser.Scene {
     this.isNightMode = false;
     this.backgroundSprite = null;
 
+    // Debug system for hitboxes
+    this.debugHitboxes = true; // Set to false to disable
+    this.debugGraphics = null;
+
+    // Debug cursor tooltip system
+    this.debugCursorTooltip = true; // Set to false to disable
+    this.cursorTooltip = null;
+    this.cursorTooltipText = null;
+
+    // Manual drag system for better mouse support
+    this.manualDragObject = null;
+    this.manualDragStartX = 0;
+    this.manualDragStartY = 0;
+    this.manualDragObjectStartX = 0;
+    this.manualDragObjectStartY = 0;
+
     this.blobTypes = [
       {
         key: "lavenderBlob",
@@ -151,6 +167,15 @@ class BlobGame extends Phaser.Scene {
 
       // Set up camera controls
       this.setupCameraControls();
+
+      // Initialize debug graphics for hitbox visualization
+      if (this.debugHitboxes) {
+        this.debugGraphics = this.add.graphics();
+        this.debugGraphics.setDepth(20000); // Always on top
+      }
+
+      // Initialize cursor tooltip for debugging
+      this.setupCursorTooltip();
 
       this.particles = this.add.particles(0, 0, "sparkle", {
         scale: { start: 1.0, end: 0 },
@@ -377,6 +402,91 @@ class BlobGame extends Phaser.Scene {
     // No need to generate them procedurally
   }
 
+  // Debug function to visualize hitboxes
+  drawDebugHitbox(sprite, color = 0xff0000, alpha = 0.5) {
+    if (!this.debugHitboxes || !this.debugGraphics) return;
+
+    if (!sprite.input) {
+      console.log("Sprite has no input:", sprite.texture.key);
+      return;
+    }
+
+    const hitArea = sprite.input.hitArea;
+    console.log(
+      "HitArea:",
+      hitArea,
+      "Type:",
+      hitArea?.type,
+      "Sprite:",
+      sprite.texture.key
+    );
+
+    if (hitArea) {
+      // Draw regardless of type - let's see what we get
+      this.debugGraphics.fillStyle(color, alpha);
+      this.debugGraphics.fillRect(
+        sprite.x + hitArea.x,
+        sprite.y + hitArea.y,
+        hitArea.width,
+        hitArea.height
+      );
+
+      // Draw border
+      this.debugGraphics.lineStyle(3, color, 1.0);
+      this.debugGraphics.strokeRect(
+        sprite.x + hitArea.x,
+        sprite.y + hitArea.y,
+        hitArea.width,
+        hitArea.height
+      );
+
+      console.log(
+        "Drew hitbox for",
+        sprite.texture.key,
+        "at",
+        sprite.x,
+        sprite.y
+      );
+    } else {
+      console.log("No hitArea found for", sprite.texture.key);
+    }
+  }
+
+  // Update all debug hitboxes
+  updateDebugHitboxes() {
+    if (!this.debugHitboxes || !this.debugGraphics) return;
+    console.log("draw boxes");
+
+    this.debugGraphics.clear();
+
+    // Test rectangle to make sure graphics work
+    this.debugGraphics.fillStyle(0xffff00, 0.8);
+    this.debugGraphics.fillRect(100, 100, 50, 50);
+    console.log("Drew test rectangle");
+
+    // Draw food hitboxes in green
+    this.food.forEach((food) => {
+      if (food.sprite && food.sprite.active) {
+        this.drawDebugHitbox(food.sprite, 0x00ff00, 0.2);
+      }
+    });
+
+    // Draw decoration hitboxes in blue
+    this.decorations.forEach((decoration) => {
+      if (decoration.sprite && decoration.sprite.active) {
+        this.drawDebugHitbox(decoration.sprite, 0x0000ff, 0.2);
+      }
+    });
+
+    // Draw blob hitboxes in red
+    this.blobs.forEach((blob) => {
+      if (blob.sprite && blob.sprite.active) {
+        this.drawDebugHitbox(blob.sprite, 0xff0000, 0.2);
+        console.log("BLOB");
+      }
+    });
+  }
+
   createFoodSprite() {
     const food = this.add.graphics();
 
@@ -493,14 +603,102 @@ class BlobGame extends Phaser.Scene {
       }
 
       // Check if we're clicking on a draggable object
+      const worldX = pointer.x + this.cameras.main.scrollX;
+      const worldY = pointer.y + this.cameras.main.scrollY;
+
+      // Use both Phaser's hit test and our manual detection for better accuracy
       const hitObjects = this.input.hitTestPointer(pointer);
-      const draggableObject = hitObjects.find(
-        (obj) => obj.input && obj.input.draggable
-      );
+      const manualHits = this.getObjectsAtWorldPosition(worldX, worldY);
+
+      // Prefer manual hits, fall back to Phaser hits
+      let draggableObject = null;
+
+      // Check manual hits first
+      for (const obj of manualHits) {
+        if (obj.input && obj.input.draggable) {
+          draggableObject = obj;
+          break;
+        }
+      }
+
+      // Fall back to Phaser hits if no manual hit found
+      if (!draggableObject) {
+        draggableObject = hitObjects.find(
+          (obj) => obj.input && obj.input.draggable
+        );
+      }
+
+      // Debug logging
+      console.log("🎯 Drag detection:", {
+        worldPos: `${worldX.toFixed(1)}, ${worldY.toFixed(1)}`,
+        phaserHits: hitObjects.length,
+        manualHits: manualHits.length,
+        foundDraggable: !!draggableObject,
+        draggableType: draggableObject?.texture?.key,
+      });
+
+      // If we still haven't found a draggable object, try a more aggressive search
+      if (!draggableObject) {
+        const allDraggableObjects = [];
+
+        // Collect all draggable objects
+        this.food.forEach((f) => {
+          if (f.sprite && f.sprite.input && f.sprite.input.draggable) {
+            allDraggableObjects.push(f.sprite);
+          }
+        });
+
+        this.decorations.forEach((d) => {
+          if (d.sprite && d.sprite.input && d.sprite.input.draggable) {
+            allDraggableObjects.push(d.sprite);
+          }
+        });
+
+        // Find the closest draggable object within a larger radius
+        let closestObject = null;
+        let closestDistance = Infinity;
+        const maxDistance = 50; // Larger search radius for mouse users
+
+        allDraggableObjects.forEach((obj) => {
+          const distance = Phaser.Math.Distance.Between(
+            worldX,
+            worldY,
+            obj.x,
+            obj.y
+          );
+          if (distance < maxDistance && distance < closestDistance) {
+            closestDistance = distance;
+            closestObject = obj;
+          }
+        });
+
+        if (closestObject) {
+          draggableObject = closestObject;
+          console.log(
+            "🎯 Found draggable via aggressive search:",
+            closestObject.texture?.key,
+            "distance:",
+            closestDistance.toFixed(1)
+          );
+        }
+      }
 
       if (draggableObject) {
         this.isDraggingObject = true;
         this.isDraggingCamera = false;
+
+        // Manually trigger Phaser's drag system
+        console.log(
+          "🎯 Manually starting drag on:",
+          draggableObject.texture?.key
+        );
+
+        // Store the object we're dragging for manual drag handling
+        this.manualDragObject = draggableObject;
+        this.manualDragStartX = worldX;
+        this.manualDragStartY = worldY;
+        this.manualDragObjectStartX = draggableObject.x;
+        this.manualDragObjectStartY = draggableObject.y;
       } else {
         this.isDraggingCamera = true;
         this.isDraggingObject = false;
@@ -549,6 +747,76 @@ class BlobGame extends Phaser.Scene {
         return;
       }
 
+      // Handle manual object dragging
+      if (this.isDraggingObject && this.manualDragObject) {
+        const worldX = pointer.x + this.cameras.main.scrollX;
+        const worldY = pointer.y + this.cameras.main.scrollY;
+
+        const validatedPosition = this.validatePositionInDiamond(
+          worldX,
+          worldY
+        );
+
+        // Store old position for blob movement tracking
+        const oldX = this.manualDragObject.x;
+        const oldY = this.manualDragObject.y;
+
+        // Update object position
+        this.manualDragObject.x = validatedPosition.x;
+        this.manualDragObject.y = validatedPosition.y;
+        this.manualDragObject.setDepth(validatedPosition.y + 500);
+
+        // Update data object position
+        const decoration = this.decorations.find(
+          (d) => d.sprite === this.manualDragObject
+        );
+        if (decoration) {
+          decoration.x = validatedPosition.x;
+          decoration.y = validatedPosition.y;
+
+          // Handle special decoration behaviors
+          if (decoration.type === "rock") {
+            this.moveSleepingBlobsWithRock(
+              decoration,
+              oldX,
+              oldY,
+              validatedPosition.x,
+              validatedPosition.y
+            );
+          } else if (decoration.type === "stump") {
+            this.moveDancingBlobsWithStump(
+              decoration,
+              oldX,
+              oldY,
+              validatedPosition.x,
+              validatedPosition.y
+            );
+          } else if (decoration.type === "bouncePad") {
+            this.moveBouncingBlobsWithPad(
+              decoration,
+              oldX,
+              oldY,
+              validatedPosition.x,
+              validatedPosition.y
+            );
+          }
+        }
+
+        const food = this.food.find((f) => f.sprite === this.manualDragObject);
+        if (food) {
+          food.x = validatedPosition.x;
+          food.y = validatedPosition.y;
+        }
+
+        console.log(
+          "🎯 Manual drag update:",
+          this.manualDragObject.texture?.key,
+          "to",
+          validatedPosition.x.toFixed(1),
+          validatedPosition.y.toFixed(1)
+        );
+      }
+
       if (this.isDraggingCamera && !this.isDraggingObject) {
         const deltaX = this.dragStartX - pointer.x;
         const deltaY = this.dragStartY - pointer.y;
@@ -577,6 +845,15 @@ class BlobGame extends Phaser.Scene {
         this.pinchStartDistance = 0;
       }
 
+      // Clean up manual drag
+      if (this.manualDragObject) {
+        console.log(
+          "🛑 Manual drag ended on:",
+          this.manualDragObject.texture?.key
+        );
+        this.manualDragObject = null;
+      }
+
       if (this.isDraggingCamera && !this.hasDragged && !this.isDraggingObject) {
         // Convert screen coordinates to world coordinates
         const worldX = pointer.x + this.cameras.main.scrollX;
@@ -595,6 +872,16 @@ class BlobGame extends Phaser.Scene {
         this.isPinching = false;
         this.pinchStartDistance = 0;
       }
+
+      // Clean up manual drag on cancel too
+      if (this.manualDragObject) {
+        console.log(
+          "❌ Manual drag cancelled on:",
+          this.manualDragObject.texture?.key
+        );
+        this.manualDragObject = null;
+      }
+
       this.isDraggingCamera = false;
       this.isDraggingObject = false;
       this.hasDragged = false;
@@ -620,6 +907,200 @@ class BlobGame extends Phaser.Scene {
     const dx = point2.x - point1.x;
     const dy = point2.y - point1.y;
     return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  setupCursorTooltip() {
+    // Create a background for the tooltip
+    this.cursorTooltip = this.add.graphics();
+    this.cursorTooltip.setDepth(25000); // Above everything else
+    this.cursorTooltip.setVisible(false);
+
+    // Create text for the tooltip
+    this.cursorTooltipText = this.add.text(0, 0, "", {
+      fontSize: "14px",
+      fontFamily: "Arial",
+      fill: "#ffffff",
+      backgroundColor: "#000000",
+      padding: { x: 6, y: 4 },
+      borderRadius: 4,
+    });
+    this.cursorTooltipText.setDepth(25001); // Above the background
+    this.cursorTooltipText.setVisible(false);
+
+    // Add pointer move listener for cursor tooltip
+    this.input.on("pointermove", (pointer) => {
+      this.updateCursorTooltip(pointer);
+    });
+  }
+
+  updateCursorTooltip(pointer) {
+    // Only show tooltip if debug mode is enabled
+    if (!this.debugCursorTooltip) {
+      this.cursorTooltipText.setVisible(false);
+      return;
+    }
+
+    // Convert screen coordinates to world coordinates
+    const worldX = pointer.x + this.cameras.main.scrollX;
+    const worldY = pointer.y + this.cameras.main.scrollY;
+
+    // Get all objects under the cursor using both Phaser's hit test and manual detection
+    const hitObjects = this.input.hitTestPointer(pointer);
+
+    // Also do manual hit detection for better accuracy
+    const manualHits = this.getObjectsAtWorldPosition(worldX, worldY);
+
+    let tooltipText = "";
+    let detectedObject = null;
+
+    // Prefer manual hit detection, fall back to Phaser's hit test
+    if (manualHits.length > 0) {
+      detectedObject = manualHits[0];
+    } else if (hitObjects.length > 0) {
+      detectedObject = hitObjects[0];
+    }
+
+    if (detectedObject) {
+      // Debug: log what we found
+      if (this.debugCursorTooltip) {
+        console.log(
+          "Phaser hits:",
+          hitObjects.length,
+          "Manual hits:",
+          manualHits.length,
+          "Selected:",
+          detectedObject.texture?.key,
+          "World pos:",
+          worldX.toFixed(1),
+          worldY.toFixed(1)
+        );
+      }
+
+      // Check what type of object this is
+      const blob = this.blobs.find((b) => b.sprite === detectedObject);
+      const decoration = this.decorations.find(
+        (d) => d.sprite === detectedObject
+      );
+      const food = this.food.find((f) => f.sprite === detectedObject);
+
+      if (blob) {
+        const blobType = this.blobTypes.find((t) => t.key === blob.type);
+        tooltipText = `${
+          blobType ? blobType.name : blob.type
+        } (Happiness: ${Math.round(blob.happiness)}%)`;
+        if (blob.state) {
+          tooltipText += ` - ${blob.state}`;
+        }
+      } else if (decoration) {
+        const decorationType = this.decorationTypes[decoration.type];
+        tooltipText = `${decoration.type} (Cost: ${
+          decorationType ? decorationType.cost : "?"
+        } coins)`;
+      } else if (food) {
+        tooltipText = "Food (10 coins)";
+      } else {
+        // Generic object
+        tooltipText = detectedObject.texture
+          ? detectedObject.texture.key
+          : "Unknown Object";
+      }
+    } else {
+      tooltipText = "Garden Ground";
+    }
+
+    // Update tooltip position and text
+    if (tooltipText) {
+      this.cursorTooltipText.setText(tooltipText);
+
+      // Position tooltip near cursor but offset so it doesn't interfere
+      const offsetX = 15;
+      const offsetY = -25;
+
+      // Convert screen coordinates to world coordinates for proper positioning
+      const worldX = pointer.x + this.cameras.main.scrollX;
+      const worldY = pointer.y + this.cameras.main.scrollY;
+
+      this.cursorTooltipText.setPosition(worldX + offsetX, worldY + offsetY);
+
+      // Make sure tooltip stays on screen (in world coordinates)
+      const bounds = this.cursorTooltipText.getBounds();
+      const camera = this.cameras.main;
+      const screenLeft = camera.scrollX;
+      const screenRight = camera.scrollX + camera.width;
+      const screenTop = camera.scrollY;
+      const screenBottom = camera.scrollY + camera.height;
+
+      // Adjust if tooltip goes off screen
+      if (bounds.right > screenRight) {
+        this.cursorTooltipText.x = worldX - bounds.width - 5;
+      }
+      if (bounds.top < screenTop) {
+        this.cursorTooltipText.y = worldY + 20;
+      }
+
+      this.cursorTooltipText.setVisible(true);
+    } else {
+      this.cursorTooltipText.setVisible(false);
+    }
+  }
+
+  getObjectsAtWorldPosition(worldX, worldY) {
+    const hits = [];
+    const tolerance = 25; // Increased tolerance for better mouse detection
+
+    // Check blobs
+    this.blobs.forEach((blob) => {
+      if (blob.sprite && blob.sprite.active) {
+        const distance = Phaser.Math.Distance.Between(
+          worldX,
+          worldY,
+          blob.sprite.x,
+          blob.sprite.y
+        );
+        if (distance <= blob.sprite.displayWidth / 2 + tolerance) {
+          hits.push({ object: blob.sprite, distance, type: "blob" });
+        }
+      }
+    });
+
+    // Check decorations
+    this.decorations.forEach((decoration) => {
+      if (decoration.sprite && decoration.sprite.active) {
+        const distance = Phaser.Math.Distance.Between(
+          worldX,
+          worldY,
+          decoration.sprite.x,
+          decoration.sprite.y
+        );
+        if (distance <= decoration.sprite.displayWidth / 2 + tolerance) {
+          hits.push({
+            object: decoration.sprite,
+            distance,
+            type: "decoration",
+          });
+        }
+      }
+    });
+
+    // Check food
+    this.food.forEach((food) => {
+      if (food.sprite && food.sprite.active) {
+        const distance = Phaser.Math.Distance.Between(
+          worldX,
+          worldY,
+          food.sprite.x,
+          food.sprite.y
+        );
+        if (distance <= food.sprite.displayWidth / 2 + tolerance) {
+          hits.push({ object: food.sprite, distance, type: "food" });
+        }
+      }
+    });
+
+    // Sort by distance (closest first) and return just the sprites
+    return hits
+      .sort((a, b) => a.distance - b.distance)
+      .map((hit) => hit.object);
   }
 
   setupEventListeners() {
@@ -747,6 +1228,7 @@ class BlobGame extends Phaser.Scene {
     // Click handling is now integrated into camera drag controls
 
     this.input.on("dragstart", (pointer, gameObject) => {
+      console.log("🚀 Drag started on:", gameObject.texture?.key);
       this.isDraggingObject = true;
       this.isDraggingCamera = false;
     });
@@ -819,7 +1301,28 @@ class BlobGame extends Phaser.Scene {
     });
 
     this.input.on("dragend", (pointer, gameObject) => {
+      console.log("🛑 Drag ended on:", gameObject.texture?.key);
       this.isDraggingObject = false;
+    });
+
+    // Add keyboard shortcut to toggle debug hitboxes (press 'H' key)
+    this.input.keyboard.on("keydown-H", () => {
+      this.debugHitboxes = !this.debugHitboxes;
+      console.log("Debug hitboxes:", this.debugHitboxes ? "ON" : "OFF");
+
+      if (!this.debugHitboxes && this.debugGraphics) {
+        this.debugGraphics.clear();
+      }
+    });
+
+    // Add keyboard shortcut to toggle cursor tooltip (press 'T' key)
+    this.input.keyboard.on("keydown-T", () => {
+      this.debugCursorTooltip = !this.debugCursorTooltip;
+      console.log("Cursor tooltip:", this.debugCursorTooltip ? "ON" : "OFF");
+
+      if (!this.debugCursorTooltip) {
+        this.cursorTooltipText.setVisible(false);
+      }
     });
   }
 
@@ -830,7 +1333,12 @@ class BlobGame extends Phaser.Scene {
       const position = this.getRandomGroundPosition();
       const foodSprite = this.add.image(position.x, position.y, "bug");
       foodSprite.setScale(1.0);
-      foodSprite.setInteractive();
+      // Make hitbox match the full image size (food sprite is 20x22)
+      foodSprite.setInteractive({
+        hitArea: new Phaser.Geom.Rectangle(-10, -11, 20, 22),
+        hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+        useHandCursor: true,
+      });
       foodSprite.setDepth(position.y + 100); // Set depth for proper layering
 
       // Make food draggable
@@ -869,7 +1377,12 @@ class BlobGame extends Phaser.Scene {
       const spriteKey = this.isNightMode ? decoration.nightKey : decoration.key;
 
       const decorSprite = this.add.image(position.x, position.y, spriteKey);
-      decorSprite.setInteractive();
+      // Make hitbox match the full image size (decorations are typically 64x64 or similar)
+      decorSprite.setInteractive({
+        hitArea: new Phaser.Geom.Rectangle(-32, -32, 64, 64),
+        hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+        useHandCursor: true,
+      });
       decorSprite.setDepth(position.y + 500); // Higher depth to ensure visibility
 
       // Make all decorations draggable
@@ -979,7 +1492,14 @@ class BlobGame extends Phaser.Scene {
     }
 
     if (sprite.setScale) sprite.setScale(randomScale);
-    if (sprite.setInteractive) sprite.setInteractive();
+    if (sprite.setInteractive) {
+      // Make hitbox match the full blob image size (blobs are 44x40)
+      sprite.setInteractive({
+        hitArea: new Phaser.Geom.Rectangle(-22, -20, 44, 40),
+        hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+        useHandCursor: true,
+      });
+    }
     if (sprite.setDepth) sprite.setDepth(position.y + 1000);
 
     // Create shadow using graphics directly, positioned relative to sprite
@@ -1600,7 +2120,11 @@ class BlobGame extends Phaser.Scene {
     blob.sleepingOnRock = null;
 
     // Re-enable blob interactivity now that it's no longer sleeping
-    blob.sprite.setInteractive();
+    blob.sprite.setInteractive({
+      hitArea: new Phaser.Geom.Rectangle(-22, -20, 44, 40),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+      useHandCursor: true,
+    });
 
     // Find a safe landing position near the rock
     let landingPosition = this.findSafePosition(blob);
@@ -2011,7 +2535,11 @@ class BlobGame extends Phaser.Scene {
     blob.dancingOnStump = null;
 
     // Re-enable blob interactivity
-    blob.sprite.setInteractive();
+    blob.sprite.setInteractive({
+      hitArea: new Phaser.Geom.Rectangle(-22, -20, 44, 40),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+      useHandCursor: true,
+    });
 
     // Stop all dancing tweens
     this.tweens.killTweensOf(blob.sprite);
@@ -2237,7 +2765,11 @@ class BlobGame extends Phaser.Scene {
     blob.bouncingOnPad = null;
 
     // Re-enable blob interactivity
-    blob.sprite.setInteractive();
+    blob.sprite.setInteractive({
+      hitArea: new Phaser.Geom.Rectangle(-22, -20, 44, 40),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+      useHandCursor: true,
+    });
 
     // Stop all bouncing tweens
     this.tweens.killTweensOf(blob.sprite);
@@ -2557,6 +3089,12 @@ class BlobGame extends Phaser.Scene {
   }
 
   update() {
+    // Update debug hitbox visualization
+    if (this.debugHitboxes) {
+      console.log("update");
+      this.updateDebugHitboxes();
+    }
+
     this.blobs.forEach((blob) => {
       for (let i = this.food.length - 1; i >= 0; i--) {
         const food = this.food[i];
