@@ -732,6 +732,18 @@ class BlobGame extends Phaser.Scene {
       });
     }
 
+    // Zoom slider functionality
+    const zoomSlider = document.getElementById("zoom-slider");
+    if (zoomSlider) {
+      zoomSlider.addEventListener("input", (e) => {
+        const zoomValue = parseInt(e.target.value);
+        const zoomFactor = zoomValue / 100;
+        if (this.cameras && this.cameras.main) {
+          this.cameras.main.setZoom(zoomFactor);
+        }
+      });
+    }
+
     // Click handling is now integrated into camera drag controls
 
     this.input.on("dragstart", (pointer, gameObject) => {

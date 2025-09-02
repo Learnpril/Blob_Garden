@@ -16,7 +16,20 @@
       </header>
 
       <div class="game-area">
-        <div id="phaser-game"></div>
+        <div id="phaser-game">
+          <!-- Zoom slider in bottom right corner of game canvas -->
+          <div class="zoom-control">
+            <span class="zoom-label">🔍</span>
+            <input
+              type="range"
+              id="zoom-slider"
+              min="50"
+              max="200"
+              value="100"
+              title="Zoom Level"
+            />
+          </div>
+        </div>
         <!-- Coins display inside game area -->
         <div class="game-ui-overlay">
           <div class="coins-display">Coins: <span id="coins">100</span></div>
