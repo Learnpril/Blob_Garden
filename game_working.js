@@ -27,7 +27,7 @@ class BlobGame extends Phaser.Scene {
     this.backgroundSprite = null;
 
     // Debug system for hitboxes
-    this.debugHitboxes = true; // Set to false to disable
+    this.debugHitboxes = false; // Default to off, press 'H' to enable
     this.debugGraphics = null;
 
     // Debug cursor tooltip system (controlled by debugHitboxes)
@@ -126,6 +126,10 @@ class BlobGame extends Phaser.Scene {
     this.load.image("stump", "stump.png");
     this.load.image("stump_night", "stump_night.png");
 
+    // Load food PNGs (day and night versions)
+    this.load.image("food", "food.png");
+    this.load.image("food_night", "food_night.png");
+
     // Load the blob PNGs
     this.load.image("lavenderBlob", "lavenderblob.png");
     this.load.image("pinkBlob", "pinkblob.png");
@@ -139,8 +143,7 @@ class BlobGame extends Phaser.Scene {
 
     try {
       this.createBlobSprites();
-      // Decoration sprites are now loaded as PNG assets, no need to generate
-      this.createFoodSprite();
+      // Decoration and food sprites are now loaded as PNG assets, no need to generate
       this.createCoinSprite();
     } catch (error) {
       console.error("Error creating sprites:", error);
@@ -484,31 +487,6 @@ class BlobGame extends Phaser.Scene {
         console.log("BLOB");
       }
     });
-  }
-
-  createFoodSprite() {
-    const food = this.add.graphics();
-
-    // Main drumstick meat - rounded orange/brown body (like in the image)
-    food.fillStyle(0xcd853f); // Peru orange-brown color
-    food.fillCircle(10, 14, 9); // Round meat portion
-
-    // White bone end (fluffy part at top)
-    food.fillStyle(0xffffff); // Pure white
-    food.fillEllipse(10, 6, 8, 6); // Bone end - wider and flatter
-
-    // Bone end shading/texture
-    food.fillStyle(0xf5f5f5); // Light gray for bone texture
-    food.fillEllipse(11, 6, 6, 4); // Slight shading on bone
-
-    // Dark spots on the meat (like in the image)
-    food.fillStyle(0x8b4513); // Dark brown spots
-    food.fillCircle(8, 12, 1.5); // Left spot
-    food.fillCircle(12, 16, 1.2); // Right spot
-    food.fillCircle(10, 18, 1); // Bottom spot
-
-    food.generateTexture("bug", 20, 22);
-    food.destroy();
   }
 
   createCoinSprite() {
@@ -1328,11 +1306,20 @@ class BlobGame extends Phaser.Scene {
       this.coins -= 10;
 
       const position = this.getRandomGroundPosition();
-      const foodSprite = this.add.image(position.x, position.y, "bug");
+      // Use appropriate food sprite based on day/night mode
+      const foodTextureKey = this.isNightMode ? "food_night" : "food";
+      const foodSprite = this.add.image(position.x, position.y, foodTextureKey);
       foodSprite.setScale(1.0);
-      // Make hitbox match the full image size (food sprite is 20x22)
+
+      // Make hitbox match the image size (will adjust based on actual PNG dimensions)
+      const bounds = foodSprite.getBounds();
       foodSprite.setInteractive({
-        hitArea: new Phaser.Geom.Rectangle(-10, -11, 20, 22),
+        hitArea: new Phaser.Geom.Rectangle(
+          -bounds.width / 2,
+          -bounds.height / 2,
+          bounds.width,
+          bounds.height
+        ),
         hitAreaCallback: Phaser.Geom.Rectangle.Contains,
         useHandCursor: true,
       });
@@ -4976,6 +4963,9 @@ class BlobGame extends Phaser.Scene {
     // Update existing decorations to use day/night textures
     this.updateDecorationTextures();
 
+    // Update existing food to use day/night textures
+    this.updateFoodTextures();
+
     // Update the toggle button appearance
     this.updateDayNightButton();
   }
@@ -4988,6 +4978,16 @@ class BlobGame extends Phaser.Scene {
         : decoration.dayKey;
       if (decoration.sprite && decoration.sprite.setTexture) {
         decoration.sprite.setTexture(spriteKey);
+      }
+    });
+  }
+
+  updateFoodTextures() {
+    // Update all existing food to use the appropriate day/night texture
+    this.food.forEach((food) => {
+      const foodTextureKey = this.isNightMode ? "food_night" : "food";
+      if (food.sprite && food.sprite.setTexture) {
+        food.sprite.setTexture(foodTextureKey);
       }
     });
   }
